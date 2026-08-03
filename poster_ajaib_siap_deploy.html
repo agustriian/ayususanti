@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poster Ajaib - Editor</title>
+    
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Load html2canvas untuk fitur unduh -->
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    
+    <!-- INI DIA: AI Hapus Latar Belakang (Hanya jalan di Server/Vercel) -->
+    <script src="https://unpkg.com/@imgly/background-removal@1.4.5/dist/browser/umd/index.js"></script>
+    
+    <!-- Load Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Poppins', sans-serif; background-color: #f3f4f6; }
+        .font-serif-custom { font-family: 'Playfair Display', serif; }
+        
+        /* Kontainer Poster - Proporsi 9:16 untuk IG Story/Tiktok */
+        #poster-container {
+            width: 360px;
+            height: 640px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            overflow: hidden;
+            position: relative;
+            background-color: white;
+        }
+
+        /* Latar Belakang Gambar/Warna Poster */
+        #poster-bg {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 0;
+            background-size: cover;
+            background-position: center;
+            /* Gradasi Default */
+            background-image: linear-gradient(to bottom, #B47B25 0%, #E1B863 30%, #FFFFFF 60%, #8B4513 100%);
+            transition: all 0.3s ease;
+        }
+
+        /* Cahaya Sorotan di tengah */
+        .light-beam {
+            position: absolute;
+            top: 30%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 250px;
+            height: 400px;
+            background: radial-gradient(ellipse at top, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 70%);
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* Kelas untuk fitur Drag & Drop */
+        .draggable {
+            cursor: grab;
+            position: relative;
+            z-index: 10;
+        }
+        
+        .draggable:active { cursor: grabbing; }
+        
+        /* Efek saat teks diklik untuk diedit */
+        .editable-text:hover { outline: 1px dashed rgba(255,255,255,0.5); border-radius: 4px; }
+        .editable-text:focus { outline: 2px dashed white; border-radius: 4px; background: rgba(0,0,0,0.1); }
+
+        /* Animasi Loading AI */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #f97316;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Efek Bayangan Teks agar terbaca di gambar terang */
+        .text-shadow-sm { text-shadow: 0 1px 2px rgba(0,0,0,0.6); }
+        .text-shadow-md { text-shadow: 0 2px 4px rgba(0,0,0,0.7); }
+        .text-shadow-lg { text-shadow: 0 4px 6px rgba(0,0,0,0.8); }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 flex flex-col items-center">
+
+    <div class="w-full max-w-5xl flex flex-col md:flex-row gap-8 justify-center items-start">
+        
+        <!-- PANEL KIRI: PENGATURAN -->
+        <div class="w-full md:w-1/3 bg-white p-6 rounded-xl shadow-lg h-fit max-h-[90vh] overflow-y-auto">
+            <h2 class="text-xl font-bold mb-4 text-gray-800">Alat Editor Poster</h2>
+            
+            <div class="mb-5 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                <label class="block text-sm font-semibold text-blue-800 mb-2">1. Upload Background (Foto Dapur dll)</label>
+                <input type="file" id="bg-upload" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer">
+            </div>
+
+            <div class="mb-5 p-3 bg-orange-50 rounded-lg border border-orange-100 relative">
+                <label class="block text-sm font-semibold text-orange-800 mb-2">2. Foto Produk (Otomatis Hapus Latar)</label>
+                <input type="file" id="product-upload" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-orange-600 file:text-white hover:file:bg-orange-700 cursor-pointer">
+                
+                <!-- Indikator Loading AI -->
+                <div id="ai-loading" class="absolute top-1/2 right-4 -translate-y-1/2 flex flex-col items-center hidden">
+                    <div class="loader block"></div>
+                    <span class="text-[10px] text-orange-600 mt-1 font-bold text-center leading-tight">AI Potong<br>Gambar...</span>
+                </div>
+            </div>
+
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Upload Logo Baru (Opsional)</label>
+                <input type="file" id="logo-upload" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gray-200 file:text-gray-700 hover:file:bg-gray-300 cursor-pointer">
+            </div>
+
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Ubah Warna Gradasi (Jika tanpa foto background)</label>
+                <div class="flex gap-2">
+                    <input type="color" id="color1" value="#B47B25" class="w-8 h-8 rounded cursor-pointer">
+                    <input type="color" id="color2" value="#E1B863" class="w-8 h-8 rounded cursor-pointer">
+                    <input type="color" id="color3" value="#FFFFFF" class="w-8 h-8 rounded cursor-pointer">
+                    <input type="color" id="color4" value="#8B4513" class="w-8 h-8 rounded cursor-pointer">
+                </div>
+            </div>
+
+            <hr class="my-4">
+
+            <div class="space-y-3">
+                <p class="text-xs text-gray-500 font-medium">Ubah teks dari sini atau klik langsung teksnya di poster.</p>
+                <div><label class="block text-gray-700 text-xs">Teks Logo</label><input type="text" id="input-logotext" value="HANYA PAGI" class="mt-1 block w-full rounded-md border-gray-300 border p-2 text-sm"></div>
+                <div><label class="block text-gray-700 text-xs">Judul Utama</label><input type="text" id="input-title" value="Pagi Ini Spesial." class="mt-1 block w-full rounded-md border-gray-300 border p-2 text-sm"></div>
+                <div><label class="block text-gray-700 text-xs">Sub Judul</label><input type="text" id="input-subtitle" value="Mie Lidi Bumbu Pecel" class="mt-1 block w-full rounded-md border-gray-300 border p-2 text-sm"></div>
+                <div><label class="block text-gray-700 text-xs">Deskripsi</label><textarea id="input-desc" rows="2" class="mt-1 block w-full rounded-md border-gray-300 border p-2 text-sm">Lidi renyah bertemu bumbu pecel pedas manis. Wajib coba buat sarapanmu!</textarea></div>
+                <div><label class="block text-gray-700 text-xs">Harga</label><input type="text" id="input-price" value="Rp 10.000" class="mt-1 block w-full rounded-md border-gray-300 border p-2 text-sm"></div>
+                <div><label class="block text-gray-700 text-xs">Info Bawah</label><textarea id="input-info" rows="2" class="mt-1 block w-full rounded-md border-gray-300 border p-2 text-sm">Datang langsung ke Simpang Jodoh atau pesan di hanyapagi.com. Buka pukul 06.00 - 10.00.</textarea></div>
+                <div class="flex gap-2">
+                    <div class="w-1/2"><label class="block text-gray-700 text-xs">Instagram</label><input type="text" id="input-ig" value="@hanyapagi" class="mt-1 block w-full rounded-md border-gray-300 border p-2 text-sm"></div>
+                    <div class="w-1/2"><label class="block text-gray-700 text-xs">TikTok</label><input type="text" id="input-tiktok" value="@hanyapagi" class="mt-1 block w-full rounded-md border-gray-300 border p-2 text-sm"></div>
+                </div>
+            </div>
+
+            <button onclick="downloadPoster()" class="mt-6 w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition">
+                Download Poster (PNG)
+            </button>
+        </div>
+
+        <!-- PANEL KANAN: PREVIEW POSTER -->
+        <div class="flex flex-col items-center">
+            <p class="text-sm text-gray-500 mb-2 font-medium">Klik teks untuk edit | Sentuh tahan & geser elemen bebas</p>
+            
+            <div id="poster-container" class="bg-gray-100 rounded-md">
+                
+                <!-- Latar Belakang Dinamis -->
+                <div id="poster-bg"></div>
+                <!-- Cahaya Sorot -->
+                <div class="light-beam"></div>
+
+                <!-- Konten Poster -->
+                <div id="poster-content" class="relative z-10 h-full p-5 flex flex-col justify-between items-center text-center text-white">
+                    
+                    <!-- Bagian Atas: Logo -->
+                    <div class="draggable w-full flex flex-col items-center mt-2 shrink-0" id="drag-logo">
+                        <img id="logo-img" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'><path d='M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.758 17.303a.75.75 0 00-1.061-1.06l-1.591 1.59a.75.75 0 001.06 1.061l1.591-1.59zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.697 7.757a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 00-1.061 1.06l1.59 1.591z'/><path d='M12 15a3 3 0 100-6 3 3 0 000 6z'/><path d='M3.75 18a.75.75 0 01.75-.75h15a.75.75 0 010 1.5h-15a.75.75 0 01-.75-.75z'/><path d='M6 21a.75.75 0 01.75-.75h10.5a.75.75 0 010 1.5H6.75A.75.75 0 016 21z'/></svg>" class="w-10 h-10 mb-1 drop-shadow-md" alt="Logo">
+                        <div class="editable-text font-bold text-xs uppercase tracking-widest leading-tight text-shadow-lg" id="display-logotext" contenteditable="true" spellcheck="false">HANYA<br>PAGI</div>
+                    </div>
+
+                    <!-- Bagian Tengah: Teks Deskripsi & Gambar Makanan -->
+                    <div class="flex-grow flex flex-col justify-center items-center w-full relative z-20">
+                        <div class="draggable w-full flex flex-col items-center mb-4" id="drag-texts">
+                            <h1 class="editable-text font-serif-custom text-4xl font-bold leading-tight mb-1 text-shadow-lg" id="display-title" contenteditable="true" spellcheck="false">Pagi Ini<br>Spesial.</h1>
+                            <h2 class="editable-text text-lg font-semibold text-white text-shadow-md" id="display-subtitle" contenteditable="true" spellcheck="false">Mie Lidi Bumbu Pecel</h2>
+                            <p class="editable-text text-[10px] mt-2 max-w-[80%] text-white text-shadow-md font-medium" id="display-desc" contenteditable="true" spellcheck="false">Lidi renyah bertemu bumbu pecel pedas manis. Wajib coba buat sarapanmu!</p>
+                            <h3 class="editable-text text-xl font-bold mt-3 text-shadow-lg text-yellow-300" id="display-price" contenteditable="true" spellcheck="false">Rp 10.000</h3>
+                        </div>
+
+                        <!-- Gambar Produk -->
+                        <div class="draggable relative flex justify-center items-center w-full h-[200px]" id="drag-product">
+                            <!-- SVG Bawaan sebelum upload -->
+                            <img id="product-img" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffffff' opacity='0.7'><path d='M21 15.75v-9A2.25 2.25 0 0018.75 4.5H5.25A2.25 2.25 0 003 6.75v9A2.25 2.25 0 005.25 18h13.5A2.25 2.25 0 0021 15.75zM12 15a3 3 0 110-6 3 3 0 010 6z'/></svg>" class="max-w-[90%] max-h-full object-contain pointer-events-none" alt="Product">
+                        </div>
+                    </div>
+
+                    <!-- Bagian Bawah: Informasi & Media Sosial -->
+                    <div class="draggable w-full flex flex-col items-center shrink-0 mb-2" id="drag-footer">
+                        <p class="editable-text text-[8px] mb-3 max-w-[90%] text-white text-shadow-md font-medium" id="display-info" contenteditable="true" spellcheck="false">Datang langsung ke Simpang Jodoh atau pesan di hanyapagi.com. Buka pukul 06.00 - 10.00.</p>
+                        
+                        <div class="flex items-center gap-4 text-[10px] font-medium text-shadow-md">
+                            <div class="flex items-center gap-1">
+                                <svg class="w-3 h-3 drop-shadow-md" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+                                <span class="editable-text" id="display-ig" contenteditable="true" spellcheck="false">@hanyapagi</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <svg class="w-3 h-3 drop-shadow-md" fill="currentColor" viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93v7.2c0 1.63-.52 3.25-1.51 4.54-1.25 1.65-3.25 2.66-5.32 2.8-2.31.15-4.69-.51-6.28-2.15-1.52-1.55-2.22-3.8-1.92-5.96.26-1.9 1.42-3.6 3.12-4.52 1.66-.9 3.66-1.14 5.51-.76.12.03.24.06.36.1v4.06c-1.39-.23-2.86-.06-4.04.75-.85.59-1.43 1.55-1.45 2.6-.03 1.34.8 2.63 2.05 3.06 1.25.43 2.73.18 3.73-.7 1.05-.93 1.5-2.38 1.5-3.79V0h2.47z"/></svg>
+                                <span class="editable-text" id="display-tiktok" contenteditable="true" spellcheck="false">@hanyapagi</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT UTAMA APLIKASI -->
+    <script>
+        // 1. Fungsi Ganti Gambar Latar Belakang (Dapur dll)
+        document.getElementById('bg-upload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const posterBg = document.getElementById('poster-bg');
+                    posterBg.style.backgroundImage = `url(${event.target.result})`;
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // 2. FUNGSI INTI: AI Potong Background Gambar Produk
+        document.getElementById('product-upload').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const loadingEl = document.getElementById('ai-loading');
+            const imgEl = document.getElementById('product-img');
+            
+            // Tampilkan animasi loading
+            loadingEl.classList.remove('hidden');
+            
+            try {
+                // Pastikan fungsi AI sudah ter-load dari unpkg
+                if (typeof imglyRemoveBackground === 'undefined') {
+                    throw new Error("Sistem AI belum siap. Pastikan Anda terkoneksi ke internet.");
+                }
+
+                // Pengaturan letak file otak AI (Wajib agar stabil)
+                const config = {
+                    publicPath: 'https://unpkg.com/@imgly/background-removal@1.4.5/dist/'
+                };
+                
+                // --- PROSES POTONG GAMBAR OLEH AI ---
+                console.log("AI mulai bekerja menghapus background...");
+                const imageBlob = await imglyRemoveBackground(file, config);
+                
+                // Ubah hasil potongan jadi URL yang bisa ditampilkan
+                const url = URL.createObjectURL(imageBlob);
+                imgEl.src = url;
+                
+                // Beri efek kosmetik ala studio profesional!
+                imgEl.classList.add('drop-shadow-[0_25px_25px_rgba(0,0,0,0.6)]'); // Bayangan 3D
+                imgEl.style.filter = 'contrast(1.1) brightness(1.05)'; // Penyesuaian warna
+                
+                console.log("Gambar berhasil dipotong dan diterapkan!");
+                
+            } catch (error) {
+                // Jika terjadi error (misalnya koneksi putus / model gagal dimuat)
+                console.error("Proses AI Gagal:", error);
+                alert("Gagal memotong gambar secara otomatis. Menampilkan gambar asli Anda. Error: " + error.message);
+                
+                // FALLBACK: Tampilkan gambar asli yang diupload user
+                const reader = new FileReader();
+                reader.onload = (ev) => { 
+                    imgEl.src = ev.target.result;
+                    imgEl.classList.add('drop-shadow-lg'); // Tetap beri bayangan ringan
+                };
+                reader.readAsDataURL(file);
+            } finally {
+                // Matikan animasi loading apapun hasilnya
+                loadingEl.classList.add('hidden');
+            }
+        });
+
+        // 3. Fungsi Ganti Logo
+        document.getElementById('logo-upload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    document.getElementById('logo-img').src = event.target.result;
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // 4. Sinkronisasi Form Teks dengan Poster
+        const fields = ['title', 'subtitle', 'desc', 'price', 'info', 'logotext', 'ig', 'tiktok'];
+        fields.forEach(field => {
+            const input = document.getElementById(`input-${field}`);
+            const display = document.getElementById(`display-${field}`);
+            
+            // Ketik di kiri, muncul di kanan
+            input.addEventListener('input', (e) => {
+                display.innerHTML = e.target.value.replace(/\n/g, '<br>');
+            });
+            
+            // Ketik di kanan (poster), muncul di kiri
+            display.addEventListener('input', (e) => {
+                let text = e.target.innerHTML.replace(/<br\s*[\/]?>/gi, '\n');
+                input.value = text.replace(/<[^>]+>/g, '');
+            });
+        });
+
+        // 5. Ubah Warna Gradasi
+        const colorInputs = ['color1', 'color2', 'color3', 'color4'];
+        colorInputs.forEach(id => {
+            document.getElementById(id).addEventListener('input', () => {
+                const c1 = document.getElementById('color1').value;
+                const c2 = document.getElementById('color2').value;
+                const c3 = document.getElementById('color3').value;
+                const c4 = document.getElementById('color4').value;
+                
+                // Timpa background gambar menjadi gradasi baru
+                document.getElementById('poster-bg').style.backgroundImage = `linear-gradient(to bottom, ${c1} 0%, ${c2} 30%, ${c3} 60%, ${c4} 100%)`;
+                document.getElementById('bg-upload').value = ''; // Kosongkan file gambar
+            });
+        });
+
+        // 6. FUNGSI DRAG AND DROP (Geser Elemen di Poster)
+        document.querySelectorAll('.draggable').forEach(elem => {
+            let isDragging = false, startX, startY, initialX, initialY, xOffset = 0, yOffset = 0;
+
+            const dragStart = (e) => {
+                // Cegah geser jika pengguna sedang ingin mengetik di teks
+                if (e.target.classList.contains('editable-text')) return; 
+                
+                isDragging = true;
+                if (e.type === "touchstart") {
+                    startX = e.touches[0].clientX - xOffset;
+                    startY = e.touches[0].clientY - yOffset;
+                } else {
+                    startX = e.clientX - xOffset;
+                    startY = e.clientY - yOffset;
+                }
+            };
+
+            const drag = (e) => {
+                if (isDragging) {
+                    e.preventDefault();
+                    if (e.type === "touchmove") {
+                        initialX = e.touches[0].clientX - startX;
+                        initialY = e.touches[0].clientY - startY;
+                    } else {
+                        initialX = e.clientX - startX;
+                        initialY = e.clientY - startY;
+                    }
+                    xOffset = initialX; yOffset = initialY;
+                    elem.style.transform = `translate3d(${initialX}px, ${initialY}px, 0)`;
+                }
+            };
+
+            const dragEnd = () => { initialX = xOffset; initialY = yOffset; isDragging = false; };
+
+            // Event Listener untuk Mouse
+            elem.addEventListener('mousedown', dragStart);
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', dragEnd);
+            
+            // Event Listener untuk Touch Screen (HP)
+            elem.addEventListener('touchstart', dragStart, {passive: false});
+            document.addEventListener('touchmove', drag, {passive: false});
+            document.addEventListener('touchend', dragEnd);
+        });
+
+        // 7. FUNGSI UNDUH (Screenshot Kanvas)
+        function downloadPoster() {
+            const container = document.getElementById('poster-container');
+            const btn = document.querySelector('button');
+            const originalText = btn.innerHTML;
+            
+            // Ubah tombol jadi loading
+            btn.innerHTML = "Memproses Screenshot...";
+            btn.disabled = true;
+            
+            // Sembunyikan garis putus-putus saat diedit agar tidak ikut kefoto
+            document.querySelectorAll('.editable-text').forEach(el => el.style.outline = 'none');
+
+            // Proses Screenshot Resolusi Tinggi (Scale 3)
+            html2canvas(container, { 
+                scale: 3, 
+                useCORS: true, 
+                backgroundColor: null 
+            })
+            .then(canvas => {
+                // Buat link download palsu
+                const link = document.createElement('a');
+                link.download = 'Poster_Ajaib_Toko_Saya.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            })
+            .catch(err => {
+                alert("Gagal mengunduh gambar. Pastikan background aman.");
+                console.error(err);
+            })
+            .finally(() => {
+                // Kembalikan tombol seperti semula
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            });
+        }
+    </script>
+</body>
+</html>
+```
+
+Simpan kode di atas ke file bernama `index.html`. 
+
+Setelah itu kamu cukup dorong (Push) file tersebut ke repositori **GitHub**, atau *drag-and-drop* saja folder yang berisi file `index.html` tersebut langsung ke *dashboard* **Vercel** / **Netlify**.
+
+Nanti AI-nya pasti bekerja dengan sempurna menghapus latar bekal makananmu! Selamat mencoba!
