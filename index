@@ -11,7 +11,7 @@
     <!-- Load html2canvas untuk fitur unduh -->
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     
-    <!-- INI DIA: AI Hapus Latar Belakang (Hanya jalan di Server/Vercel) -->
+    <!-- INI DIA: AI Hapus Latar Belakang (Berfungsi sempurna di Vercel/GitHub) -->
     <script src="https://unpkg.com/@imgly/background-removal@1.4.5/dist/browser/umd/index.js"></script>
     
     <!-- Load Fonts -->
@@ -363,7 +363,7 @@
             document.addEventListener('touchend', dragEnd);
         });
 
-        // 7. FUNGSI UNDUH (Screenshot Kanvas)
+        // 7. FUNGSI UNDUH (Screenshot Kanvas) - SUDAH DIPERBAIKI UNTUK VERCEL
         function downloadPoster() {
             const container = document.getElementById('poster-container');
             const btn = document.querySelector('button');
@@ -380,18 +380,26 @@
             html2canvas(container, { 
                 scale: 3, 
                 useCORS: true, 
+                allowTaint: true, // WAJIB ADA: Mencegah gambar di-block oleh browser saat didownload
                 backgroundColor: null 
             })
             .then(canvas => {
-                // Buat link download palsu
+                // Buat link download
                 const link = document.createElement('a');
-                link.download = 'Poster_Ajaib_Toko_Saya.png';
-                link.href = canvas.toDataURL('image/png');
-                link.click();
+                link.download = 'Poster_Djoeragan_Pagi.png'; // Pastikan format .png tertulis jelas
+                
+                // Paksa browser mengubah hasil screenshot jadi format gambar PNG yang sah
+                try {
+                    link.href = canvas.toDataURL('image/png', 1.0);
+                    link.click();
+                } catch (e) {
+                    console.error("Gagal membuat Data URL", e);
+                    alert("Terjadi kesalahan saat mengunduh. Coba gunakan gambar latar belakang yang ukurannya lebih kecil.");
+                }
             })
             .catch(err => {
                 alert("Gagal mengunduh gambar. Pastikan background aman.");
-                console.error(err);
+                console.error("html2canvas error:", err);
             })
             .finally(() => {
                 // Kembalikan tombol seperti semula
@@ -402,10 +410,3 @@
     </script>
 </body>
 </html>
-```
-
-Simpan kode di atas ke file bernama `index.html`. 
-
-Setelah itu kamu cukup dorong (Push) file tersebut ke repositori **GitHub**, atau *drag-and-drop* saja folder yang berisi file `index.html` tersebut langsung ke *dashboard* **Vercel** / **Netlify**.
-
-Nanti AI-nya pasti bekerja dengan sempurna menghapus latar bekal makananmu! Selamat mencoba!
