@@ -384,18 +384,31 @@
                 backgroundColor: null 
             })
             .then(canvas => {
-                // Buat link download
-                const link = document.createElement('a');
-                link.download = 'Poster_Djoeragan_Pagi.png'; // Pastikan format .png tertulis jelas
-                
-                // Paksa browser mengubah hasil screenshot jadi format gambar PNG yang sah
-                try {
-                    link.href = canvas.toDataURL('image/png', 1.0);
-                    link.click();
-                } catch (e) {
-                    console.error("Gagal membuat Data URL", e);
-                    alert("Terjadi kesalahan saat mengunduh. Coba gunakan gambar latar belakang yang ukurannya lebih kecil.");
-                }
+                // Konversi canvas menjadi objek Blob yang merupakan file gambar sah
+                canvas.toBlob(function(blob) {
+                    if (blob) {
+                        // Buat URL sementara untuk Blob gambar
+                        const url = URL.createObjectURL(blob);
+                        
+                        // Buat elemen link tersembunyi
+                        const link = document.createElement('a');
+                        link.href = url;
+                        // Paksa ekstensi .png pada nama file
+                        link.download = 'Poster_Djoeragan_Pagi.png';
+                        
+                        // Eksekusi klik untuk memicu download
+                        document.body.appendChild(link);
+                        link.click();
+                        
+                        // Bersihkan URL sementara dari memori
+                        setTimeout(() => {
+                            document.body.removeChild(link);
+                            URL.revokeObjectURL(url);
+                        }, 100);
+                    } else {
+                        alert("Gagal memproses gambar. Coba gunakan gambar latar yang ukurannya lebih kecil.");
+                    }
+                }, 'image/png'); // Pastikan tipe file yang dihasilkan adalah PNG
             })
             .catch(err => {
                 alert("Gagal mengunduh gambar. Pastikan background aman.");
