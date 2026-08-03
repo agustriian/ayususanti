@@ -215,7 +215,7 @@
             }
         });
 
-        // 2. FUNGSI POTONG GAMBAR (Menggunakan API yang Dijamin Berfungsi di Vercel)
+        // 2. FUNGSI POTONG GAMBAR (Menggunakan imgly AI dengan Asset URL yang benar untuk Vercel)
         document.getElementById('product-upload').addEventListener('change', async function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -227,27 +227,17 @@
             loadingEl.classList.remove('hidden');
             
             try {
-                // Kita gunakan form data untuk mengirim gambar
-                const formData = new FormData();
-                formData.append('image_file', file);
+                // Memuat pustaka AI secara dinamis dari unpkg (lebih aman dari CORS)
+                const imgly = await import('https://unpkg.com/@imgly/background-removal@1.4.5/dist/browser/esm.js');
                 
-                // MENGGUNAKAN LAYANAN CLIPDROP API (Publik/Demo)
-                // Ini mengatasi masalah CORS pada Vercel secara tuntas
-                const response = await fetch('https://clipdrop-api.co/remove-background/v1', {
-                    method: 'POST',
-                    headers: {
-                        // Menggunakan API Key Demo dari Dokumentasi Resmi
-                        'x-api-key': '0ddb5cf2e5c6a51d9d93f8e5627db8dbcf81d59ccce486ebf04df5943b0069b76c8c4e4776cd64be5dc7f698ed6f7c6e'
-                    },
-                    body: formData,
-                });
+                // Konfigurasi PENTING untuk Vercel: Mengarahkan publicPath ke unpkg
+                const config = {
+                    publicPath: 'https://unpkg.com/@imgly/background-removal@1.4.5/dist/',
+                    debug: false // matikan log debug agar tidak memenuhi console
+                };
 
-                if (!response.ok) {
-                    throw new Error('Gagal memproses ke server.');
-                }
-
-                // Ambil hasil gambar tanpa background
-                const imageBlob = await response.blob();
+                // Proses AI secara lokal di browser pengguna (gratis, tanpa limit server)
+                const imageBlob = await imgly.removeBackground(file, config);
                 
                 // Tampilkan di layar
                 const url = URL.createObjectURL(imageBlob);
@@ -259,9 +249,9 @@
                 
             } catch (error) {
                 console.error("Proses Potong Gagal:", error);
-                alert("Server pemotong sedang sibuk. Menampilkan foto asli Anda.");
+                alert("Model AI gagal dimuat. Pastikan browser Anda mendukung WebGL/WASM dan tidak memblokir file berukuran besar. Menampilkan foto asli Anda.");
                 
-                // FALLBACK: Tampilkan foto aslinya kalau server kepenuhan
+                // FALLBACK: Tampilkan foto aslinya kalau AI gagal dimuat
                 const reader = new FileReader();
                 reader.onload = (ev) => { 
                     imgEl.src = ev.target.result;
