@@ -1,530 +1,1238 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Poster Kilat AI - Batch Generator</title>
-    
-    <!-- Load Tailwind CSS -->
+    <title>Product Showcase Generator</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- JSZip untuk bulk download -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-
-    <!-- Load Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Poppins', sans-serif; background-color: #f8fafc; }
-        .font-serif-custom { font-family: 'Playfair Display', serif; }
-        
-        /* Custom file input styles */
-        .file-upload-box {
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom styles for file input */
+        .file-input-label {
             transition: all 0.2s ease-in-out;
         }
-        .file-upload-box:hover {
-            border-color: #f97316; /* Tailwind orange-500 */
-            background-color: #fff7ed; /* Tailwind orange-50 */
+        .file-input-label:hover {
+            border-color: #4f46e5;
+            background-color: #f0f2ff;
         }
-
         /* Spinner animation */
-        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
         .spinner {
-            border-top-color: #f97316;
+            border-top-color: #4f46e5;
             animation: spin 1s linear infinite;
         }
-
-        /* Hover actions on generated images */
-        .result-item-container .overlay-actions {
-            opacity: 0;
-            transition: opacity 0.2s ease;
+        /* Prevent layout shift */
+        .results-grid {
+            min-height: 400px;
         }
-        .result-item-container:hover .overlay-actions {
+        /* Fade-in animation for results */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-in-out forwards;
+        }
+        .selected-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border: 3px solid #4f46e5; /* Indigo color */
+            border-radius: 0.5rem;
+            pointer-events: none; /* Allows clicks to pass through to the button beneath */
+            opacity: 0;
+            transition: opacity 0.1s ease;
+        }
+        .selected .selected-overlay {
             opacity: 1;
         }
-
-        /* Selection styling */
-        .selected-ring {
+        /* Style for the new, cleaner select button in the corner */
+        .select-toggle {
             position: absolute;
-            inset: 0;
-            border: 3px solid #ea580c; /* Tailwind orange-600 */
-            border-radius: 0.5rem;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.1s;
+            top: 8px;
+            left: 8px;
+            width: 24px; /* Fixed size for the round button */
+            height: 24px;
+            border-radius: 9999px; /* Circle */
+            background-color: rgba(0, 0, 0, 0.4); /* Dark background for visibility */
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 30; /* Above all other controls */
+            opacity: 0; /* Hidden by default */
+            transition: opacity 0.1s ease, background-color 0.2s;
         }
-        .result-item-container.selected .selected-ring { opacity: 1; }
-        .result-item-container.selected .btn-select { background-color: #ea580c; color: white; }
-
-        /* Ensure 9:16 vertical ratio grid */
+        .group:hover .select-toggle, .selected .select-toggle {
+            opacity: 1; /* Always visible when selected or hovered */
+        }
+        .selected .select-toggle {
+            background-color: #4f46e5; /* Indigo when selected */
+        }
+        /* Aspect Ratio utility classes for result items */
+        .aspect-1-1 { aspect-ratio: 1 / 1; }
+        .aspect-3-4 { aspect-ratio: 3 / 4; }
         .aspect-9-16 { aspect-ratio: 9 / 16; }
+        .aspect-16-9 { aspect-ratio: 16 / 9; }
+        
+        .aspect-square {
+            aspect-ratio: 1 / 1;
+        }
+        .product-upload-slot {
+            height: 12rem; /* h-48 equivalent */
+        }
     </style>
 </head>
-<body class="text-slate-800 antialiased min-h-screen">
+<body class="bg-slate-50 text-slate-800">
 
     <div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
-        
-        <header class="text-center mb-10">
-            <h1 class="text-4xl sm:text-5xl font-bold text-slate-900 mb-3 font-serif-custom tracking-tight">Poster Kilat <span class="text-orange-600">AI</span></h1>
-            <p class="text-lg text-slate-600 max-w-2xl mx-auto">Satu klik untuk memadukan produkmu ke dalam poster estetik. AI akan otomatis membuatkan 6 variasi desain vertikal (9:16) yang siap diposting ke Story atau TikTok!</p>
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-bold text-slate-900">Product Showcase Generator</h1>
+            <p class="mt-2 text-lg text-slate-600">Buat foto produk yang profesional, estetik, dan memukau secara automatik.</p>
         </header>
 
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            
-            <!-- PANEL KIRI: FORM & KONTROL -->
-            <div class="lg:col-span-4 bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200 sticky top-6">
-                <form id="generation-form" class="space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <!-- Left Panel: Controls -->
+            <div class="lg:col-span-4 bg-white p-6 rounded-2xl shadow-lg border border-slate-200">
+                <form id="generation-form">
+                    <!-- 1. Upload Product (Dynamically Multi-slot) -->
+                    <div class="mb-6">
+                        <label class="block text-lg font-semibold mb-2 text-slate-700">1. Muat Naik Imej Produk</label>
+                        
+                        <!-- Product Count Selection -->
+                        <div class="mb-4">
+                            <label for="product-count" class="block text-sm font-medium text-slate-600 mb-1">Jumlah Produk (Untuk Kolaj)</label>
+                            <select id="product-count" class="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="1" selected>1 Produk (Single Frame)</option>
+                                <option value="2">2 Produk (Single Frame)</option>
+                                <option value="3">3 Produk (Single Frame)</option>
+                                <option value="4">4 Produk (Single Frame)</option>
+                                <option value="5">5 Produk (Single Frame)</option>
+                                <option value="6">6 Produk (Single Frame)</option>
+                                <option value="7">7 Produk (Single Frame)</option>
+                                <option value="8">8 Produk (Single Frame)</option>
+                                <option value="9">9 Produk (Single Frame)</option>
+                                <option value="10">10 Produk (Single Frame)</option>
+                            </select>
+                            <p class="text-xs text-slate-500 mt-1">Semua produk akan digabungkan menjadi satu foto estetik.</p>
+                        </div>
+                        
+                        <!-- Dynamic Upload Slots Container -->
+                        <div id="product-upload-slots" class="space-y-4">
+                            <!-- Default 1 slot on load -->
+                            <div class="product-slot" data-index="0">
+                                <label for="product-upload-0" class="file-input-label flex flex-col items-center justify-center w-full product-upload-slot border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50">
+                                    <div class="upload-prompt flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                                        <svg class="w-8 h-8 mb-4 text-slate-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+                                        </svg>
+                                        <p class="mb-2 text-sm text-slate-500"><span class="font-semibold">Klik untuk muat naik</span></p>
+                                        <p class="text-xs text-slate-500">PNG atau JPG</p>
+                                    </div>
+                                    <img src="#" alt="Pratinjau Produk" class="image-preview hidden h-full w-full object-contain rounded-lg"/>
+                                    <input id="product-upload-0" type="file" class="hidden product-upload-input" accept="image/png, image/jpeg" />
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Kustomisasi -->
+                    <div class="mb-6">
+                        <label class="block text-lg font-semibold mb-3 text-slate-700">2. Kustomisasi (Agar Hasil Waw!)</label>
+                        
+                        <div class="flex items-center mb-4 pl-1">
+                            <input id="custom-prompt-checkbox" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                            <label for="custom-prompt-checkbox" class="ml-2 block text-sm font-medium text-slate-800">Gunakan Prompt Sendiri (Advanced)</label>
+                        </div>
+    
+                        <div id="custom-prompt-container" class="hidden mb-4">
+                            <label for="custom-prompt-input" class="block text-sm font-medium text-slate-600 mb-1">Prompt Kustom Anda</label>
+                            <textarea id="custom-prompt-input" rows="5" class="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Contoh: Jadikan ini foto studio yang profesional..."></textarea>
+                        </div>
+
+                        <fieldset id="guided-options">
+                            <div class="space-y-4">
+                                
+                                <!-- KATEGORI PRODUK (NEW FEATURE) -->
+                                <div class="bg-indigo-50 p-3 rounded-lg border border-indigo-100">
+                                    <label for="product-category" class="block text-sm font-bold text-indigo-900 mb-1">Kategori Produk (Penting!)</label>
+                                    <select id="product-category" class="w-full p-2 border border-indigo-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-indigo-900">
+                                        <option value="general">Umum / Lainnya (General)</option>
+                                        <option value="food">Makanan (Sambal, Kue, Roti, Keripik)</option>
+                                        <option value="beverage">Minuman (Jus, Kopi, Botol, Dingin)</option>
+                                        <option value="fashion">Fashion (Baju, Hijab, Sepatu, Tas)</option>
+                                        <option value="beauty">Kecantikan & Kosmetik (Skincare, Parfum)</option>
+                                        <option value="craft">Kerajinan & Aksesoris (Tasbih, Ganci, Handmade)</option>
+                                        <option value="electronic">Elektronik & Gadget</option>
+                                        <option value="home">Perabotan & Dekorasi (Gelas, Vas)</option>
+                                        <option value="custom">-- Input Sendiri (Custom) --</option>
+                                    </select>
+                                    
+                                    <!-- Custom Category Input (Hidden by default) -->
+                                    <div id="custom-category-container" class="mt-2 hidden">
+                                        <label class="block text-xs font-medium text-indigo-800 mb-1">Tulis Kategori Produk Anda</label>
+                                        <input type="text" id="custom-category-input" class="w-full p-2 border border-indigo-300 rounded-md text-sm" placeholder="Contoh: Sparepart Motor, Mainan Anak, dll">
+                                    </div>
+
+                                    <p class="text-xs text-indigo-600 mt-1">AI akan otomatis menyesuaikan *mood*, pencahayaan, dan *garnish* sesuai kategori ini.</p>
+                                </div>
+
+                                <div id="upload-type-container">
+                                    <label for="upload-type" class="block text-sm font-medium text-slate-600 mb-1">Jenis Unggahan</label>
+                                    <select id="upload-type" class="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                        <option value="finished_product">Produk Jadi</option>
+                                        <option value="fabric">Bahan / Pola Kain</option>
+                                    </select>
+                                </div>
+
+                                <div id="product-desc-container">
+                                    <label for="product-description" class="block text-sm font-medium text-slate-600 mb-1">Deskripsi Tambahan (Opsional)</label>
+                                    <input type="text" id="product-description" class="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-5ular-500" placeholder="Contoh: pedas nampol, bahan premium">
+                                    <p class="text-xs text-slate-400 mt-1">Hanya untuk referensi suasana (tidak muncul sebagai teks).</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center my-4 pl-1">
+                                <input id="without-model" type="checkbox" checked class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                                <label for="without-model" class="ml-2 block text-sm font-medium text-slate-800">Tanpa Model (Fokus Produk Studio)</label>
+                            </div>
+
+                            <!-- Model Source Selection -->
+                            <div id="model-source-container" class="space-y-2 mb-4 hidden">
+                                <label class="block text-sm font-medium text-slate-600">Pilih Tipe Model:</label>
+                                <div class="flex flex-wrap gap-4">
+                                    <div>
+                                        <input type="radio" id="generate-realistic-radio" name="model-source" value="generate_realistic" checked class="h-4 w-4 border border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                                        <label for="generate-realistic-radio" class="ml-2 text-sm font-medium text-slate-800">Hasilkan Model (Realistis)</label>
+                                    </div>
+                                    <div>
+                                        <input type="radio" id="generate-faceless-radio" name="model-source" value="generate_faceless_cartoon" class="h-4 w-4 border border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                                        <label for="generate-faceless-radio" class="ml-2 text-sm font-medium text-slate-800">Hasilkan Model Faceless (3D)</label>
+                                    </div>
+                                    <div>
+                                        <input type="radio" id="upload-model-radio" name="model-source" value="upload" class="h-4 w-4 border border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                                        <label for="upload-model-radio" class="ml-2 text-sm font-medium text-slate-800">Unggah Model Sendiri</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Model Upload Section -->
+                            <div id="upload-model-section" class="hidden mb-6">
+                                <label class="block text-sm font-medium text-slate-600 mb-1">Unggah Foto Model</label>
+                                <label for="model-upload-slot" class="file-input-label flex flex-col items-center justify-center w-full h-48 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50">
+                                    <div id="model-upload-prompt" class="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                                        <svg class="w-8 h-8 mb-4 text-slate-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+                                        </svg>
+                                        <p class="mb-2 text-sm text-slate-500"><span class="font-semibold">Klik untuk mengunggah model</span></p>
+                                        <p class="text-xs text-slate-500">PNG atau JPG</p>
+                                    </div>
+                                    <img id="model-image-preview" src="#" alt="Pratinjau Model" class="hidden h-full w-full object-contain rounded-lg"/>
+                                    <input id="model-upload-slot" type="file" class="hidden" accept="image/png, image/jpeg" />
+                                </label>
+                            </div>
+                            
+                            <!-- Model Customization Options (shared or specific) -->
+                            <div id="shared-model-options" class="space-y-4 transition-opacity duration-300">
+                                <div>
+                                    <label for="photo-style" class="block text-sm font-medium text-slate-600 mb-1">Gaya & Latar</label>
+                                    <select id="photo-style" class="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                        <option value="A natural, casual, everyday setting.">Kasual / Sehari-hari</option>
+                                        <option value="A clean, neat, elegant, formal setting, suitable for premium products.">Formal / Elegan</option>
+                                        <option value="An outdoor setting like a park, street, or beach.">Outdoor</option>
+                                        <option value="An indoor studio setting with a plain background and professional studio lighting.">Indoor / Studio</option>
+                                        <option value="A lifestyle setting, showing activity like drinking coffee, reading a book, or walking.">Lifestyle</option>
+                                        <option value="A family or group photo (father, mother, child), suitable for family set products.">Keluarga / Group</option>
+                                        <option value="A stylish, fashion magazine lookbook style.">Trendy / Fashion Lookbook</option>
+                                    </select>
+                                </div>
+                                
+                                <!-- Model Specific Options (Hidden by default) -->
+                                <div id="model-specific-controls" class="hidden space-y-4">
+                                    <div>
+                                        <label for="model-pose" class="block text-sm font-medium text-slate-600 mb-1">Pose Model</label>
+                                        <select id="model-pose" class="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                            <option value="standing straight">Berdiri Tegak</option>
+                                            <option value="sitting down">Duduk</option>
+                                            <option value="posing sideways">Menyamping</option>
+                                            <option value="walking">Berjalan</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="clothing-attributes" class="block text-sm font-medium text-slate-600 mb-1">Pakaian</label>
+                                        <select id="clothing-attributes" class="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                            <option value="wearing modern casual clothing">Casual Modern</option>
+                                            <option value="wearing a hijab">Berhijab</option>
+                                            <option value="not wearing a hijab">Tidak Berhijab</option>
+                                            <option value="wearing a gamis (long tunic)">Gamis</option>
+                                            <option value="wearing a Baju Muslim (Muslim attire)">Baju Muslim</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="interaction-type" class="block text-sm font-medium text-slate-600 mb-1">Jenis Interaksi</label>
+                                        <select id="interaction-type" class="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                            <option value="holding">Memegang / Membawa</option>
+                                            <option value="wearing">Memakai</option>
+                                            <option value="none">Tanpa Interaksi</option>
+                                            <option value="custom">Input Sendiri...</option>
+                                        </select>
+                                    </div>
+                                    <div id="custom-interaction-container" class="hidden">
+                                        <label for="custom-interaction-input" class="block text-sm font-medium text-slate-600 mb-1">Jelaskan Interaksinya</label>
+                                        <input type="text" id="custom-interaction-input" class="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Contoh: bersandar pada produk">
+                                    </div>
+                                    
+                                    <!-- Realistic/Faceless Specific Options -->
+                                    <div id="model-options-generate-realistic" class="space-y-4 hidden">
+                                         <div>
+                                            <label class="block text-sm font-medium text-slate-600 mb-1">Jenis Kelamin</label>
+                                            <select id="gender-realistic" class="w-full p-2 border border-slate-300 rounded-md">
+                                                <option value="woman">Perempuan</option>
+                                                <option value="man">Laki-laki</option>
+                                            </select>
+                                         </div>
+                                    </div>
+
+                                    <div id="model-options-generate-faceless" class="space-y-4 hidden">
+                                         <div>
+                                            <label class="block text-sm font-medium text-slate-600 mb-1">Gaya Wajah</label>
+                                            <select id="faceless-option" class="w-full p-2 border border-slate-300 rounded-md">
+                                                <option value="none">3D Stylized (Blank Face)</option>
+                                                <option value="faceless_back">Dari Belakang</option>
+                                            </select>
+                                         </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </fieldset>
+                    </div>
                     
-                    <!-- 1. Upload Aset -->
-                    <div>
-                        <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center"><span class="bg-orange-100 text-orange-600 w-6 h-6 rounded-full flex items-center justify-center text-sm mr-2">1</span> Siapkan Gambar</h3>
-                        
-                        <div class="space-y-4">
-                            <!-- Background Upload -->
-                            <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-1">Upload Latar Poster (Background)</label>
-                                <label for="bg-upload" class="file-upload-box flex flex-col items-center justify-center w-full h-32 border-2 border-slate-300 border-dashed rounded-xl cursor-pointer bg-slate-50 relative overflow-hidden group">
-                                    <div id="bg-prompt" class="flex flex-col items-center justify-center text-center p-4">
-                                        <svg class="w-6 h-6 text-slate-400 mb-2 group-hover:text-orange-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                        <span class="text-sm text-slate-500 font-medium">Klik pilih latar belakang</span>
-                                    </div>
-                                    <img id="bg-preview" src="" class="hidden absolute inset-0 w-full h-full object-cover">
-                                    <input id="bg-upload" type="file" class="hidden" accept="image/png, image/jpeg, image/webp" required />
-                                </label>
-                            </div>
-
-                            <!-- Product Upload -->
-                            <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-1">Upload Foto Produk (Mentah)</label>
-                                <label for="product-upload" class="file-upload-box flex flex-col items-center justify-center w-full h-32 border-2 border-slate-300 border-dashed rounded-xl cursor-pointer bg-slate-50 relative overflow-hidden group">
-                                    <div id="product-prompt" class="flex flex-col items-center justify-center text-center p-4">
-                                        <svg class="w-6 h-6 text-slate-400 mb-2 group-hover:text-orange-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                                        <span class="text-sm text-slate-500 font-medium">Klik pilih foto produk</span>
-                                    </div>
-                                    <img id="product-preview" src="" class="hidden absolute inset-0 w-full h-full object-contain bg-slate-200">
-                                    <input id="product-upload" type="file" class="hidden" accept="image/png, image/jpeg, image/webp" required />
-                                </label>
-                                <p class="text-[10px] text-slate-400 mt-1">AI akan otomatis memotong produk dan memadukannya ke latar.</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <hr class="border-slate-100">
-
-                    <!-- 2. Isi Konten Teks -->
-                    <div>
-                        <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center"><span class="bg-orange-100 text-orange-600 w-6 h-6 rounded-full flex items-center justify-center text-sm mr-2">2</span> Konten Poster</h3>
-                        
-                        <div class="space-y-3">
-                            <div>
-                                <label class="block text-xs font-medium text-slate-600 uppercase tracking-wider mb-1">Teks Logo / Nama Toko</label>
-                                <input type="text" id="form-logotext" value="HANYA PAGI" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none transition-all">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-slate-600 uppercase tracking-wider mb-1">Judul Utama Promosi</label>
-                                <input type="text" id="form-title" value="Pagi Ini Spesial." class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none transition-all" required>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-slate-600 uppercase tracking-wider mb-1">Nama / Sub Judul Produk</label>
-                                <input type="text" id="form-subtitle" value="Mie Lidi Bumbu Pecel" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none transition-all">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-slate-600 uppercase tracking-wider mb-1">Harga (Opsional)</label>
-                                <input type="text" id="form-price" value="Rp 10.000" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold text-orange-600 focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none transition-all">
-                            </div>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label class="block text-xs font-medium text-slate-600 uppercase tracking-wider mb-1">Akun IG</label>
-                                    <input type="text" id="form-ig" value="@hanyapagi" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none transition-all">
+                    <!-- 3. Tambahkan Logo -->
+                    <div class="mb-6">
+                        <label class="block text-lg font-semibold mb-2 text-slate-700">3. Tambahkan Logo (Opsional)</label>
+                        <div class="space-y-3 p-3 border border-slate-300 rounded-lg bg-slate-50">
+                             <label for="logo-upload" class="file-input-label flex items-center justify-center w-full h-24 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-white">
+                                <div id="logo-upload-prompt" class="flex flex-col items-center justify-center text-center">
+                                    <svg class="w-6 h-6 mb-1 text-slate-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+                                    </svg>
+                                    <p class="text-sm text-slate-500"><span class="font-semibold">Unggah Logo (PNG transparan disarankan)</span></p>
                                 </div>
+                                <img id="logo-image-preview" src="#" alt="Pratinjau Logo" class="hidden max-h-full max-w-full object-contain p-1"/>
+                                <input id="logo-upload" type="file" class="hidden" accept="image/png, image/jpeg" />
+                            </label>
+
+                            <div id="logo-options-container" class="hidden space-y-2">
                                 <div>
-                                    <label class="block text-xs font-medium text-slate-600 uppercase tracking-wider mb-1">Akun TikTok</label>
-                                    <input type="text" id="form-tiktok" value="@hanyapagi" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none transition-all">
+                                    <label for="logo-position" class="block text-sm font-medium text-slate-600 mb-1">Posisi Logo</label>
+                                    <select id="logo-position" class="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                        <option value="top right corner">Atas Kanan</option>
+                                        <option value="top left corner">Atas Kiri</option>
+                                        <option value="bottom right corner">Bawah Kanan</option>
+                                        <option value="bottom left corner">Bawah Kiri</option>
+                                        <option value="placed directly on the product">Di Produk (Contoh: Label Baju)</option>
+                                        <option value="custom">Input Sendiri...</option>
+                                    </select>
+                                </div>
+                                <div id="custom-logo-position-container" class="hidden">
+                                    <label for="custom-logo-position-input" class="block text-sm font-medium text-slate-600 mb-1">Deskripsi Posisi Logo Kustom</label>
+                                    <input type="text" id="custom-logo-position-input" class="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Contoh: di bagian tengah depan produk dengan efek timbul">
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- 3. Tombol Eksekusi -->
-                    <div class="pt-2">
-                        <button type="submit" id="generate-btn" class="w-full bg-orange-600 text-white font-bold py-4 px-4 rounded-xl hover:bg-orange-700 focus:outline-none focus:ring-4 focus:ring-orange-200 transition-all duration-300 flex items-center justify-center shadow-lg shadow-orange-600/30 disabled:opacity-70 disabled:cursor-not-allowed">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                            <span id="btn-text">Generate 6 Desain Otomatis</span>
+                    <!-- 4. Jumlah Gambar -->
+                    <div class="mb-6">
+                        <label for="image-count" class="block text-lg font-semibold mb-2 text-slate-700">4. Jumlah Gambar Output</label>
+                        <select id="image-count" class="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="6">6 Gambar (Cepat)</option>
+                            <option value="12">12 Gambar (Sedang)</option>
+                            <option value="18">18 Gambar</option>
+                            <option value="24">24 Gambar</option>
+                            <option value="32" selected>32 Gambar (Maksimal)</option>
+                        </select>
+                        <p class="text-xs text-slate-500 mt-1">Semakin banyak gambar, semakin lama waktu pemrosesan.</p>
+                    </div>
+
+                    <!-- 5. Pilih Rasio -->
+                    <div class="mb-6">
+                        <label class="block text-lg font-semibold mb-2 text-slate-700">5. Pilih Rasio Gambar</label>
+                        <select id="ratio-select" class="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="1:1" selected>1:1 (Square - Post)</option>
+                            <option value="4:5">4:5 (Portrait - Instagram Post)</option>
+                            <option value="16:9">16:9 (Landscape - Full HD)</option>
+                            <option value="9:16">9:16 (Vertical - Story/Reel Full HD)</option>
+                            <option value="1:1.414">Poster (1:1.414 - A-series)</option>
+                            <option value="1:3">Infografis Panjang (1:3)</option>
+                            <option value="1536:2752">1536 x 2752 (9:16 Ultra Tall)</option>
+                            <option value="2816:1536">2816 x 1536 (16:9 Ultra Wide)</option>
+                            <option value="custom">-- Custom Size --</option>
+                        </select>
+                        
+                        <!-- Custom Ratio Container -->
+                        <div id="custom-ratio-container" class="mt-3 hidden flex items-center space-x-2">
+                            <div>
+                                <label for="custom-width" class="block text-xs font-medium text-slate-600 mb-1">Lebar (px)</label>
+                                <input type="number" id="custom-width" value="1080" min="100" max="4000" class="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 text-sm">
+                            </div>
+                            <span class="text-slate-400 mt-5">x</span>
+                            <div>
+                                <label for="custom-height" class="block text-xs font-medium text-slate-600 mb-1">Tinggi (px)</label>
+                                <input type="number" id="custom-height" value="1080" min="100" max="4000" class="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 text-sm">
+                            </div>
+                        </div>
+
+                        <p id="ratio-label" class="text-sm text-slate-500 mt-2">Rasio aktif: 1:1 (Square - Post)</p>
+                    </div>
+
+                    <!-- Generate Button -->
+                    <div>
+                        <button type="submit" id="generate-btn" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-all duration-200 flex items-center justify-center disabled:bg-indigo-400 disabled:cursor-not-allowed">
+                            <span id="btn-text">Hasilkan Showcase</span>
                             <div id="btn-spinner" class="spinner w-5 h-5 ml-3 rounded-full border-2 border-white border-t-transparent hidden"></div>
                         </button>
-                        <p class="text-center text-[11px] text-slate-400 mt-3">Proses memakan waktu ~15 detik tergantung koneksi.</p>
                     </div>
-
                 </form>
             </div>
 
-            <!-- PANEL KANAN: HASIL 6 GAMBAR -->
-            <div class="lg:col-span-8 bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200 min-h-[600px] flex flex-col">
-                
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-xl font-bold text-slate-800">Hasil Poster (9:16)</h2>
-                    
-                    <!-- Batch Download Controls -->
-                    <div id="batch-controls" class="hidden flex items-center gap-3">
-                        <span class="text-sm font-medium text-slate-500"><span id="selected-count">0</span> Dipilih</span>
-                        <button id="download-selected-btn" disabled class="bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center">
-                            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                            Download (.zip)
+            <!-- Right Panel: Results -->
+            <div class="lg:col-span-8 bg-white p-6 rounded-2xl shadow-lg border border-slate-200">
+                <h2 class="text-xl font-semibold mb-4 text-slate-700">Hasil Showcase Anda</h2>
+                <div id="results-container" class="results-grid flex flex-col items-center justify-center bg-slate-50 rounded-lg border-2 border-dashed border-slate-300 p-4">
+                    <!-- Initial Placeholder -->
+                    <div id="results-placeholder" class="text-center text-slate-500 py-10">
+                        <svg class="w-12 h-12 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 1.9a2.5 2.5 0 0 0 0 3.54l1.9 1.9"/><path d="m21 12-1.9-1.9a2.5 2.5 0 0 0-3.54 0l-1.9 1.9"/><path d="m3 12 1.9-1.9a2.5 2.5 0 0 1 3.54 0l1.9 1.9"/><path d="m12 21 1.9-1.9a2.5 2.5 0 0 0 0-3.54l-1.9-1.9"/></svg>
+                        <p>Gambar yang dihasilkan akan muncul di sini.</p>
+                    </div>
+                    <!-- Loading Spinner -->
+                    <div id="results-loader" class="hidden text-center text-slate-600 py-10">
+                         <div class="spinner w-12 h-12 mx-auto rounded-full border-4 border-slate-300"></div>
+                         <p class="mt-4 text-lg">Menghasilkan gambar... ini mungkin memakan waktu yang sangat lama.</p>
+                    </div>
+                    <!-- Error Message -->
+                    <div id="error-message" class="hidden text-center text-red-600 bg-red-100 p-4 rounded-lg">
+                        <p>Oops! Terjadi kesalahan. Sila cuba lagi.</p>
+                        <p id="error-details" class="text-sm mt-1"></p>
+                    </div>
+                    <!-- Results Grid -->
+                    <div id="results-grid" class="hidden w-full grid grid-cols-2 sm:grid-cols-3 gap-4">
+                        <!-- Generated images will be appended here -->
+                    </div>
+                    <!-- Bulk Download Button -->
+                    <div id="bulk-download-container" class="hidden w-full mt-6">
+                        <button id="bulk-download-btn" type="button" disabled class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-300 transition-all duration-200 disabled:bg-green-400 disabled:cursor-not-allowed">
+                            Download 0 Gambar Terpilih
                         </button>
+                        <p id="download-hint" class="text-xs text-slate-500 mt-2 text-center hidden">Pelayar (browser) mungkin memerlukan keizinan untuk memuat turun banyak fail secara automatik.</p>
                     </div>
                 </div>
-
-                <!-- Area Kosong / Loading -->
-                <div id="empty-state" class="flex-grow flex flex-col items-center justify-center text-center p-10 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">
-                    <div id="status-icon" class="text-slate-300 mb-4">
-                        <svg class="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                    </div>
-                    <div id="status-spinner" class="spinner w-12 h-12 rounded-full border-4 border-slate-200 mb-4 hidden"></div>
-                    <h3 id="status-title" class="text-lg font-semibold text-slate-700">Belum Ada Poster</h3>
-                    <p id="status-desc" class="text-sm text-slate-500 mt-1 max-w-sm">Isi form di samping dan klik tombol Generate untuk melihat AI menyulap produkmu menjadi 6 variasi desain menawan.</p>
-                </div>
-
-                <!-- Grid Hasil -->
-                <div id="results-grid" class="hidden grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
-                    <!-- Images will be injected here -->
-                </div>
-
             </div>
         </div>
     </div>
 
-    <!-- Image Modal for Full Preview -->
-    <div id="image-modal" class="fixed inset-0 bg-slate-900/90 flex items-center justify-center p-4 z-50 hidden opacity-0 transition-opacity duration-300">
-        <div class="relative max-w-md w-full">
-            <button id="close-modal" class="absolute -top-12 right-0 text-white hover:text-orange-400 transition-colors">
-                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+    <!-- Image Preview Modal -->
+    <div id="image-preview-modal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 z-50 hidden animate-fade-in">
+        <div class="relative bg-white p-2 rounded-lg max-w-4xl max-h-[90vh] w-auto h-auto">
+            <img id="modal-image" src="" alt="Image Preview" class="max-w-full max-h-[85vh] object-contain">
+            <button id="close-modal-btn" class="absolute -top-2 -right-2 text-white bg-black bg-opacity-60 rounded-full p-1.5 hover:bg-opacity-80 focus:outline-none">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                </svg>
             </button>
-            <img id="modal-img" src="" class="w-full h-auto max-h-[85vh] object-contain rounded-lg shadow-2xl">
         </div>
     </div>
 
-    <!-- SCRIPT LOGIKA UTAMA -->
+    <footer class="text-center py-4 text-sm text-slate-500">
+        <p>created by: Photo Kilat AI</p>
+    </footer>
+
     <script>
-        const GEMINI_API_KEY = ""; // Keep empty, system will auto-inject
-        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${GEMINI_API_KEY}`;
+        // --- Hard Guarantee Helpers (Canvas Processing) ---
+        function targetSizeByRatio(r) {
+            if (r === "custom") {
+                const w = parseInt(document.getElementById('custom-width').value) || 1080;
+                const h = parseInt(document.getElementById('custom-height').value) || 1080;
+                return { W: w, H: h };
+            }
+            switch (r) {
+                case "1:1": return { W: 1080, H: 1080 };
+                case "4:5": return { W: 1080, H: 1350 };
+                case "16:9": return { W: 1920, H: 1080 };
+                case "9:16": return { W: 1080, H: 1920 };
+                case "1:1.414": return { W: 1080, H: 1527 };
+                case "1:3": return { W: 1080, H: 3240 };
+                case "1536:2752": return { W: 1536, H: 2752 };
+                case "2816:1536": return { W: 2816, H: 1536 };
+                case "2:3": return { W: 1200, H: 1800 };
+                default: return { W: 1080, H: 1080 };
+            }
+        }
 
-        // Data Storage
-        let bgImageData = null;
-        let productImageData = null;
-        const selectedImages = new Set();
-        const TOTAL_IMAGES = 6;
+        function drawContain(ctx, img, canvasW, canvasH, bgColor = "#ffffff") {
+            const imgW = img.naturalWidth || img.width;
+            const imgH = img.naturalHeight || img.height;
 
-        // UI Elements
+            // bersihin kanvas
+            ctx.clearRect(0, 0, canvasW, canvasH);
+
+            // halusin scaling
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+
+            // PENTING:
+            // - gambar di-scale pas ke ukuran kanvas
+            // - TIDAK dihitung rasio, jadi TIDAK ada bar putih / blur
+            // - TIDAK ada background tambahan
+            ctx.drawImage(img, 0, 0, canvasW, canvasH);
+        }
+
+        async function processToRatioBlob(url, ratio) {
+            if (!ratio) ratio = '1:1';
+            
+            const { W, H } = targetSizeByRatio(ratio);
+            const img = new Image(); 
+            img.crossOrigin = "anonymous"; 
+            img.src = url;
+            
+            await new Promise((resolve, reject) => { 
+                img.onload = resolve; 
+                img.onerror = () => reject(new Error("Image failed to load in Canvas processor.")); 
+                if (img.complete && img.naturalHeight !== 0) resolve();
+            });
+            
+            const c = document.createElement('canvas'); 
+            c.width = W; 
+            c.height = H;
+            const ctx = c.getContext('2d'); 
+            
+            drawContain(ctx, img, W, H);
+            
+            return await new Promise(r => c.toBlob(r, "image/png"));
+        }
+
+        async function downloadWithRatio(url, ratio, filename = null) {
+            const blob = await processToRatioBlob(url, ratio);
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            
+            let ratioStr = '1x1';
+            if (ratio === 'custom') {
+                const { W, H } = targetSizeByRatio(ratio);
+                ratioStr = `${W}x${H}`;
+            } else if (ratio) {
+                ratioStr = ratio.replace(':','x');
+            }
+            
+            a.download = filename || `showcase-${ratioStr}.png`;
+            document.body.appendChild(a); 
+            a.click();
+            URL.revokeObjectURL(a.href); 
+            document.body.removeChild(a);
+        }
+
+        // --- DOM Elements ---
         const form = document.getElementById('generation-form');
-        const bgInput = document.getElementById('bg-upload');
-        const productInput = document.getElementById('product-upload');
         const generateBtn = document.getElementById('generate-btn');
         const btnText = document.getElementById('btn-text');
         const btnSpinner = document.getElementById('btn-spinner');
-        
-        const emptyState = document.getElementById('empty-state');
-        const statusIcon = document.getElementById('status-icon');
-        const statusSpinner = document.getElementById('status-spinner');
-        const statusTitle = document.getElementById('status-title');
-        const statusDesc = document.getElementById('status-desc');
+        const resultsPlaceholder = document.getElementById('results-placeholder');
+        const resultsLoader = document.getElementById('results-loader');
         const resultsGrid = document.getElementById('results-grid');
+        const errorMessage = document.getElementById('error-message');
+        const errorDetails = document.getElementById('error-details');
+
+        const customPromptCheckbox = document.getElementById('custom-prompt-checkbox');
+        const customPromptContainer = document.getElementById('custom-prompt-container');
+        const guidedOptions = document.getElementById('guided-options');
+
+        const uploadTypeSelect = document.getElementById('upload-type');
+
+        const withoutModelCheckbox = document.getElementById('without-model');
+        const modelSourceContainer = document.getElementById('model-source-container');
+        // Radio Elements
+        const generateRealisticRadio = document.getElementById('generate-realistic-radio');
+        const generateFacelessRadio = document.getElementById('generate-faceless-radio');
+        const uploadModelRadio = document.getElementById('upload-model-radio');
         
-        const batchControls = document.getElementById('batch-controls');
-        const selectedCountEl = document.getElementById('selected-count');
-        const downloadSelectedBtn = document.getElementById('download-selected-btn');
+        const uploadModelSection = document.getElementById('upload-model-section');
+        const modelOptionsGenerateRealistic = document.getElementById('model-options-generate-realistic');
+        const modelOptionsGenerateFaceless = document.getElementById('model-options-generate-faceless');
+        const sharedModelOptions = document.getElementById('shared-model-options');
+        const modelSpecificControls = document.getElementById('model-specific-controls');
 
-        // --- File Upload Handlers ---
-        function setupUploader(inputId, previewId, promptId, callback) {
-            document.getElementById(inputId).addEventListener('change', function(e) {
-                const file = e.target.files[0];
-                if (!file) return;
+        const interactionTypeSelect = document.getElementById('interaction-type');
+        const customInteractionContainer = document.getElementById('custom-interaction-container');
 
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    const base64Data = ev.target.result.split(',')[1];
-                    const mimeType = file.type;
-                    
-                    // Show Preview
-                    document.getElementById(previewId).src = ev.target.result;
-                    document.getElementById(previewId).classList.remove('hidden');
-                    document.getElementById(promptId).classList.add('opacity-0'); // Hide prompt text
-                    
-                    callback({ mimeType, data: base64Data });
-                };
-                reader.readAsDataURL(file);
+        const ageRangeRealisticSelect = document.getElementById('age-range-realistic');
+        const customAgeContainerRealistic = document.getElementById('custom-age-container-realistic');
+        
+        const imageCountSelect = document.getElementById('image-count'); 
+        const productCountSelect = document.getElementById('product-count'); 
+        const productUploadSlots = document.getElementById('product-upload-slots'); 
+        const productCategorySelect = document.getElementById('product-category');
+        const customCategoryContainer = document.getElementById('custom-category-container');
+        
+        const logoUploadInput = document.getElementById('logo-upload'); 
+        const logoOptionsContainer = document.getElementById('logo-options-container'); 
+        const logoPositionSelect = document.getElementById('logo-position'); 
+        const customLogoPositionContainer = document.getElementById('custom-logo-position-container'); 
+        const facelessOptionSelect = document.getElementById('faceless-option'); 
+        
+        // Ratio Select, Custom inputs and Label
+        const ratioSelect = document.getElementById('ratio-select');
+        const ratioLabel = document.getElementById('ratio-label');
+        const customRatioContainer = document.getElementById('custom-ratio-container');
+        const customWidth = document.getElementById('custom-width');
+        const customHeight = document.getElementById('custom-height');
+        
+        const imagePreviewModal = document.getElementById('image-preview-modal');
+        const modalImage = document.getElementById('modal-image');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+
+        // Bulk Download Elements
+        const bulkDownloadContainer = document.getElementById('bulk-download-container');
+        const bulkDownloadBtn = document.getElementById('bulk-download-btn');
+        const downloadHint = document.getElementById('download-hint');
+
+        // Global variable for storing multiple product images (Base64)
+        let productDataArray = [null]; 
+        let modelData = null;
+        let logoData = null; 
+        let selectedImages = new Set(); 
+
+        // --- CATEGORY PROMPTS (SMART FEATURE) ---
+        const categoryPrompts = {
+            'food': 'professional food photography, delicious, appetizing, fresh ingredients, vibrant colors, soft natural lighting, depth of field, garnish details, 8k resolution, michelin star style',
+            'beverage': 'professional beverage photography, fresh, cold, condensation on glass, water splash, dynamic lighting, thirst-quenching, 8k resolution, commercial look',
+            'fashion': 'professional fashion photography, stylish, high quality fabric texture, elegant drape, soft studio lighting, trendy look, 8k resolution, vogue style',
+            'beauty': 'professional cosmetic photography, luxury, sleek packaging, soft glow, pastel or premium gold tones, water drops or floral elements, podium display, high end, 8k resolution',
+            'craft': 'professional product photography, macro details, artisanal, warm lighting, rustic or artistic background, texture focus, 8k resolution, handmade feel',
+            'electronic': 'professional tech photography, sleek, modern, high contrast, clean lines, futuristic vibe, studio lighting, 8k resolution, premium gadget',
+            'home': 'interior design photography, cozy atmosphere, warm lighting, home decor style, architectural digest style, 8k',
+            'general': 'professional commercial photography, clean composition, sharp focus, studio lighting, high end, 8k resolution, award winning'
+        };
+        
+        // --- EXPANDED STUDIO VARIATIONS (32 Unique Styles) ---
+        const studioVariations = [
+            "Levitation/Floating: Products suspended in mid-air, dynamic and magical.",
+            "Water Splash: Dynamic water or liquid splashing around the product, fresh and energetic.",
+            "Sun Kissed: Warm natural sunlight with distinct window shadow (gobo) effects.",
+            "Dark Mode: Elegant black background, dramatic rim lighting, premium luxury feel.",
+            "Nature/Organic: Surrounded by natural elements like leaves, stones, and wood.",
+            "Kitchen Chaos: A busy but aesthetic kitchen counter setting with ingredients scattered artfully.",
+            "Minimalist Podium: Clean geometric podium display, pastel colors, soft lighting.",
+            "Macro Texture: Extreme close-up focusing on the texture and details of the product.",
+            "Neon Cyberpunk: Dark background with vibrant neon lighting (pink/blue) reflections.",
+            "Flatlay Knolling: Top-down view with ingredients/parts organized neatly in a grid.",
+            "Lifestyle Hand: A hand interacting with the product (holding/pouring) in a natural setting.",
+            "Snow/Ice: Cold atmosphere with snow or ice elements, perfect for fresh products.",
+            "Golden Hour: Soft, warm, golden lighting during sunset, romantic and cozy.",
+            "Industrial: Concrete or metal background, harsh shadows, modern and edgy.",
+            "Floral Bloom: Surrounded by soft, colorful flowers, feminine and fresh.",
+            "Bokeh City: Night city lights blurred in the background, urban and modern.",
+            "Mirror Reflection: Product placed on a mirror surface with a clear reflection.",
+            "Smoke/Steam: Dramatic smoke or steam rising from the product (hot or mysterious).",
+            "Pastel Dream: Soft pastel background colors (pink, mint, blue), cute and airy.",
+            "Vintage/Retro: Warm grain, sepia tones, old-school props, nostalgic feel.",
+            "Underwater: Product submerged in water with bubbles, fresh and deep.",
+            "Explosion: Ingredients exploding outwards from the product, dynamic action.",
+            "Marble Luxury: White marble background, gold accents, expensive look.",
+            "Rustic Wood: Dark weathered wood background, cozy and traditional.",
+            "Geometric Shadows: Hard shadows created by geometric shapes, modern art style.",
+            "Cloud/Sky: Product floating in the clouds or against a blue sky.",
+            "Velvet/Silk: Background of draped velvet or silk fabric, rich and textured.",
+            "Paper Art: Background made of layered paper cutouts, creative and crafty.",
+            "Prism Light: Light refracted through a prism, creating rainbows and flares.",
+            "Monochrome: Single color theme (e.g., all red, all blue) matching the product.",
+            "Dripping: Sauce, honey, or liquid dripping over or around the product.",
+            "Spotlight Stage: A focused spotlight on the product in a dark room, theatrical."
+        ];
+
+        // --- Multi-File Upload Logic ---
+        function createProductSlotHTML(index) {
+            return `
+                <div class="product-slot" data-index="${index}">
+                    <label for="product-upload-${index}" class="file-input-label flex flex-col items-center justify-center w-full product-upload-slot border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50">
+                        <div class="upload-prompt flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                            <svg class="w-8 h-8 mb-4 text-slate-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+                            </svg>
+                            <p class="mb-2 text-sm text-slate-500"><span class="font-semibold">Produk ${index + 1}: Klik untuk unggah</span></p>
+                            <p class="text-xs text-slate-500">PNG atau JPG</p>
+                        </div>
+                        <img src="#" alt="Pratinjau Produk" class="image-preview hidden h-full w-full object-contain rounded-lg"/>
+                        <input id="product-upload-${index}" type="file" class="hidden product-upload-input" accept="image/png, image/jpeg" data-index="${index}" />
+                    </label>
+                </div>
+            `;
+        }
+
+        function setupSingleFileUploader(inputId, previewId, promptId, callback) {
+            const fileInput = document.getElementById(inputId);
+            fileInput.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                const previewImg = document.getElementById(previewId);
+                const promptDiv = document.getElementById(promptId);
+
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        previewImg.src = e.target.result;
+                        previewImg.classList.remove('hidden');
+                        promptDiv.classList.add('hidden');
+                        
+                        const match = e.target.result.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+                        if (match) {
+                            callback({ mimeType: match[1], data: match[2] });
+                        } else {
+                            const base64 = e.target.result.split(',')[1];
+                            callback({ mimeType: "image/jpeg", data: base64 });
+                        }
+                        
+                        if (inputId === 'logo-upload') {
+                            logoOptionsContainer.classList.remove('hidden');
+                            previewImg.classList.add('h-20');
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                     // Handle file clearing/reset
+                     previewImg.classList.add('hidden');
+                     promptDiv.classList.remove('hidden');
+                     if (inputId === 'logo-upload') {
+                        logoOptionsContainer.classList.add('hidden');
+                        previewImg.classList.remove('h-20');
+                    }
+                    callback(null);
+                }
             });
         }
 
-        setupUploader('bg-upload', 'bg-preview', 'bg-prompt', (data) => bgImageData = data);
-        setupUploader('product-upload', 'product-preview', 'product-prompt', (data) => productImageData = data);
+        function setupMultiFileUploader(container) {
+            container.querySelectorAll('.product-upload-input').forEach(input => {
+                input.addEventListener('change', (event) => {
+                    const index = parseInt(event.target.getAttribute('data-index'), 10);
+                    const file = event.target.files[0];
+                    const slotDiv = event.target.closest('.product-slot');
+                    const previewImg = slotDiv.querySelector('.image-preview');
+                    const promptDiv = slotDiv.querySelector('.upload-prompt');
+                    
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            previewImg.src = e.target.result;
+                            previewImg.classList.remove('hidden');
+                            promptDiv.classList.add('hidden');
+                            
+                            const match = e.target.result.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+                            if (match) {
+                                productDataArray[index] = { mimeType: match[1], data: match[2] };
+                            } else {
+                                productDataArray[index] = { mimeType: "image/png", data: e.target.result.split(',')[1] };
+                            }
+                        };
+                        reader.readAsDataURL(file);
+                    } else {
+                        previewImg.classList.add('hidden');
+                        promptDiv.classList.remove('hidden');
+                        productDataArray[index] = null; 
+                    }
+                });
+            });
+        }
 
-        // --- Core Generation Logic ---
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
+        function generateProductUploadSlots(count) {
+            productUploadSlots.innerHTML = '';
+            productDataArray = Array(count).fill(null); 
+            for (let i = 0; i < count; i++) {
+                productUploadSlots.insertAdjacentHTML('beforeend', createProductSlotHTML(i));
+            }
+            setupMultiFileUploader(productUploadSlots); // Re-attach event listeners
+        }
+
+        // --- Initial Setup ---
+        setupSingleFileUploader('model-upload-slot', 'model-image-preview', 'model-upload-prompt', (data) => {
+            modelData = data;
+        });
+        
+        setupSingleFileUploader('logo-upload', 'logo-image-preview', 'logo-upload-prompt', (data) => {
+            logoData = data;
+            if (!data) logoOptionsContainer.classList.add('hidden');
+        });
+
+        // Initialize with 1 slot
+        generateProductUploadSlots(1); 
+        
+        // Event listener for product count change
+        productCountSelect.addEventListener('change', (event) => {
+            const count = parseInt(event.target.value, 10);
+            generateProductUploadSlots(count);
+        });
+        
+        function updateRatioLabel() {
+            const ratioValue = ratioSelect.value;
+            if (ratioValue === 'custom') {
+                const w = customWidth.value || 1080;
+                const h = customHeight.value || 1080;
+                ratioLabel.textContent = `Rasio aktif: Custom (${w} x ${h} px)`;
+                customRatioContainer.classList.remove('hidden');
+            } else {
+                ratioLabel.textContent = `Rasio aktif: ${ratioValue}`;
+                customRatioContainer.classList.add('hidden');
+            }
+        }
+        
+        ratioSelect.addEventListener('change', () => {
+            updateRatioLabel();
+            updateCustomizationView();
+        });
+        customWidth.addEventListener('input', updateRatioLabel);
+        customHeight.addEventListener('input', updateRatioLabel);
+
+        // --- Other Customization Logic ---
+        logoPositionSelect.addEventListener('change', () => {
+             const logoPosition = logoPositionSelect.value;
+             if (customLogoPositionContainer) {
+                customLogoPositionContainer.style.display = logoPosition === 'custom' ? 'block' : 'none';
+             }
+        });
+
+        // Toggle custom category input
+        productCategorySelect.addEventListener('change', () => {
+             if (productCategorySelect.value === 'custom') {
+                 customCategoryContainer.classList.remove('hidden');
+             } else {
+                 customCategoryContainer.classList.add('hidden');
+             }
+        });
+        
+        // Ensure that we only add the event listener if the element exists
+        if (ageRangeRealisticSelect) {
+            ageRangeRealisticSelect.addEventListener('change', () => {
+                const ageRange = ageRangeRealisticSelect.value;
+                if(customAgeContainerRealistic) {
+                     customAgeContainerRealistic.style.display = ageRange === 'custom' ? 'block' : 'none';
+                }
+            });
+        }
+
+        function updateCustomizationView() {
+            const useCustomPrompt = customPromptCheckbox.checked;
+            if(guidedOptions) guidedOptions.style.opacity = useCustomPrompt ? '0.5' : '1';
+            customPromptContainer.style.display = useCustomPrompt ? 'block' : 'none';
+
+            if (useCustomPrompt) return;
+
+            const isWithoutModel = withoutModelCheckbox.checked;
+            const modelSource = document.querySelector('input[name="model-source"]:checked').value;
+            const uploadType = uploadTypeSelect.value;
             
-            if (!bgImageData || !productImageData) {
-                alert("Harap unggah Latar Belakang (Poster) DAN Foto Produk.");
+            sharedModelOptions.style.display = isWithoutModel ? 'none' : 'block';
+            modelSourceContainer.style.display = isWithoutModel ? 'none' : 'block';
+            uploadModelSection.style.display = (!isWithoutModel && modelSource === 'upload') ? 'block' : 'none';
+            
+            if (document.getElementById('model-options-generate-realistic')) {
+                document.getElementById('model-options-generate-realistic').classList.toggle('hidden', modelSource !== 'generate_realistic');
+            }
+            if (document.getElementById('model-options-generate-faceless')) {
+                document.getElementById('model-options-generate-faceless').classList.toggle('hidden', modelSource !== 'generate_faceless_cartoon');
+            }
+            
+            if(!isWithoutModel) {
+                if(modelSpecificControls) modelSpecificControls.classList.remove('hidden');
+                sharedModelOptions.classList.remove('hidden');
+            } else {
+                if(modelSpecificControls) modelSpecificControls.classList.add('hidden');
+            }
+
+            const interactionType = interactionTypeSelect.value;
+            if(customInteractionContainer) customInteractionContainer.style.display = interactionType === 'custom' && !isWithoutModel ? 'block' : 'none';
+
+            const logoPosition = logoPositionSelect.value;
+            if(customLogoPositionContainer) customLogoPositionContainer.style.display = logoPosition === 'custom' && logoData ? 'block' : 'none';
+        }
+        
+        customPromptCheckbox.addEventListener('change', updateCustomizationView);
+        uploadTypeSelect.addEventListener('change', updateCustomizationView);
+        withoutModelCheckbox.addEventListener('change', updateCustomizationView);
+        if (generateRealisticRadio) generateRealisticRadio.addEventListener('change', updateCustomizationView);
+        if (generateFacelessRadio) generateFacelessRadio.addEventListener('change', updateCustomizationView);
+        if (uploadModelRadio) uploadModelRadio.addEventListener('change', updateCustomizationView);
+        interactionTypeSelect.addEventListener('change', updateCustomizationView);
+        // We only add the listener if the element exists.
+        if(ageRangeRealisticSelect) {
+            ageRangeRealisticSelect.addEventListener('change', updateCustomizationView);
+        }
+        
+        // --- Bulk Download Logic ---
+        function updateBulkDownloadButton() {
+            const count = selectedImages.size;
+            bulkDownloadBtn.textContent = `Download ${count} Gambar Terpilih`;
+            bulkDownloadBtn.disabled = count === 0;
+            downloadHint.classList.toggle('hidden', count === 0);
+        }
+
+        function toggleSelection(container, button) {
+            const imageUrl = container.getAttribute('data-url');
+            const isSelected = container.classList.contains('selected');
+
+            if (isSelected) {
+                // Deselect
+                container.classList.remove('selected');
+                // Change icon to box
+                button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.017 3.457L10.093 1.533C9.404.844 8.797 0 8 0c-.797 0-1.404.844-2.093 1.533L4.017 3.457c-.689.689-.689 1.802 0 2.491L6.11 8.05l-2.093 2.093c-.689.689-.689 1.802 0 2.491l1.924 1.924c.689.689 1.802.689 2.491 0l1.924-1.924c.689-.689.689-1.802 0-2.491L9.89 8.05l2.093-2.093c.689-.689.689-1.802 0-2.491zM8 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z" fill-rule="evenodd"/></svg>`; 
+                selectedImages.delete(imageUrl);
+            } else {
+                // Select
+                container.classList.add('selected');
+                // Change icon to checkmark
+                button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.736 3.97a.5.5 0 0 1 .704.066l1.703 2.13A1.5 1.5 0 0 1 15 7.7v7.3a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V7.7a1.5 1.5 0 0 1 .557-1.134l1.702-2.13a.5.5 0 0 1 .704-.066l.852.851.8-.8a1 1 0 0 1 1.415 0l1.2 1.2 1.2-1.2a1 1 0 0 1 1.415 0l.852.851.8-.8zM14 7.7a.5.5 0 0 0-.184-.37l-1.427-1.785a.5.5 0 0 0-.743-.016l-.776.775a.5.5 0 0 1-.708 0L9.4 6.314a.5.5 0 0 0-.708 0L7.5 7.5a.5.5 0 0 1-.708 0L5.7 6.314a.5.5 0 0 0-.708 0L4.3 7.5a.5.5 0 0 1-.708 0L2.184 6.166a.5.5 0 0 0-.184.37V14a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7.7z"/><path d="M8 8.974c.734 0 1.246-.42 1.246-1.144S8.734 6.686 8 6.686c-.734 0-1.246.42-1.246 1.144S7.266 8.974 8 8.974z"/><path fill-rule="evenodd" d="M10.854 4.546a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 0 1 .708-.708L7.5 7.293l2.646-2.647a.5.5 0 0 1 .708 0z"/></svg>`;
+                selectedImages.add(imageUrl);
+            }
+
+            updateBulkDownloadButton();
+        }
+
+        async function handleBulkDownload() {
+            if (selectedImages.size === 0) return;
+            bulkDownloadBtn.disabled = true;
+            const initialText = bulkDownloadBtn.textContent;
+            
+            if (typeof JSZip === 'undefined') {
+                showModal('Error: Library JSZip tidak ditemukan.');
+                bulkDownloadBtn.disabled = false;
                 return;
             }
 
-            // Get text inputs
-            const textLogo = document.getElementById('form-logotext').value.trim();
-            const textTitle = document.getElementById('form-title').value.trim();
-            const textSubtitle = document.getElementById('form-subtitle').value.trim();
-            const textPrice = document.getElementById('form-price').value.trim();
-            const textIg = document.getElementById('form-ig').value.trim();
-            const textTiktok = document.getElementById('form-tiktok').value.trim();
+            const zip = new JSZip();
+            const downloads = Array.from(selectedImages);
+            const ratio = ratioSelect.value;
 
-            setLoading(true);
+            for (let i = 0; i < downloads.length; i++) {
+                const imageUrl = downloads[i];
+                bulkDownloadBtn.textContent = `Memproses (${i + 1}/${downloads.length})...`;
+                try {
+                    const blob = await processToRatioBlob(imageUrl, ratio);
+                    zip.file(`showcase_${i + 1}.png`, blob);
+                } catch (e) { console.error(e); }
+            }
 
-            // Create highly structured AI instructions
-            const instruction = `
-You are an expert graphic designer and product photographer AI. 
-I have provided TWO images: 
-Image 1 (first): The background environment/poster template.
-Image 2 (second): The raw product.
+            bulkDownloadBtn.textContent = `Zipping...`;
+            zip.generateAsync({ type: "blob" }).then(content => {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(content);
+                a.download = `photokilat_batch_${Date.now()}.zip`;
+                document.body.appendChild(a); a.click();
+                document.body.removeChild(a);
+                
+                document.querySelectorAll('.selected').forEach(el => {
+                     el.classList.remove('selected');
+                     const btn = el.querySelector('.select-toggle');
+                     if(btn) btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.017 3.457L10.093 1.533C9.404.844 8.797 0 8 0c-.797 0-1.404.844-2.093 1.533L4.017 3.457c-.689.689-.689 1.802 0 2.491L6.11 8.05l-2.093 2.093c-.689.689-.689 1.802 0 2.491l1.924 1.924c.689.689 1.802.689 2.491 0l1.924-1.924c.689-.689.689-1.802 0-2.491L9.89 8.05l2.093-2.093c.689-.689.689-1.802 0-2.491zM8 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z" fill-rule="evenodd"/></svg>`;
+                });
+                selectedImages.clear();
+                updateBulkDownloadButton();
+            }).finally(() => {
+                bulkDownloadBtn.disabled = false;
+                bulkDownloadBtn.textContent = initialText;
+            });
+        }
 
-TASK: Create a professional, eye-catching promotional poster.
-1. Extract the product from Image 2 seamlessly.
-2. Blend the product into the background of Image 1 naturally. Apply appropriate lighting, reflections, or drop-shadows so it looks grounded and real (not floating).
-3. EXACT ASPECT RATIO: 9:16 (Vertical, suitable for Instagram Story / TikTok). Do NOT crop the product; extend the background if needed.
-4. TYPOGRAPHY: Add the following text elegantly over the image, ensuring high readability (use subtle drop shadows or gradients behind text if needed).
-   - Brand Logo/Name: "${textLogo}" (Place elegantly, e.g., top center or top corner).
-   - Main Title: "${textTitle}" (Make this large, bold, and catchy).
-   - Subtitle/Product Name: "${textSubtitle}" (Medium size, supporting the title).
-   - Price: "${textPrice}" (Make it pop, e.g., using a contrasting color like yellow/orange).
-   - Social Media: "IG: ${textIg} | TikTok: ${textTiktok}" (Small, neat text at the very bottom).
+        // --- MAIN GENERATION HANDLER ---
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            
+            const validProducts = productDataArray.filter(p => p && p.data);
+            if (validProducts.length === 0) {
+                showModal('Sila muat naik sekurang-kurangnya satu imej.');
+                return;
+            }
 
-Ensure the final composition is balanced, aesthetic, and ready for commercial marketing. Output ONLY the image.`;
+            setLoadingState(true);
+            selectedImages.clear();
+            updateBulkDownloadButton();
 
-            // We generate 6 variations concurrently. 
-            // We use a slight tweak in the prompt to force the AI to give different stylistic layouts.
-            const styleVariations = [
-                "Focus on a clean, modern layout with elegant serif typography.",
-                "Make it look like a dynamic, high-energy promotional ad with bold sans-serif text.",
-                "Create a warm, lifestyle aesthetic with soft lighting on the product.",
-                "Use a minimalist and premium layout with lots of negative space.",
-                "Apply a vibrant, colorful, and playful composition style.",
-                "Create a dramatic, studio-lighting effect emphasizing the product textures."
-            ];
+            const useCustomPrompt = customPromptCheckbox.checked;
+            const customPromptVal = document.getElementById('custom-prompt-input').value.trim();
+            const numOutput = parseInt(imageCountSelect.value, 10);
+            const negativePrompt = "DO NOT add any brand logos, watermarks, signatures, copyright symbols, text, or any unwanted graphics. Ensure clean output.";
+            
+            // Use smart category detection logic for prompt
+            let category = productCategorySelect.value;
+            // Handle custom category
+            if (category === 'custom') {
+                category = document.getElementById('custom-category-input').value.trim() || 'general';
+            }
+            const categoryKeyword = categoryPrompts[category] || categoryPrompts['general'];
+            const ratio = ratioSelect.value; // Use selected ratio for prompt
+            const { W, H } = targetSizeByRatio(ratio);
 
             const promises = [];
-            for (let i = 0; i < TOTAL_IMAGES; i++) {
-                const specificPrompt = `${instruction}\n\nSTYLE VARIATION RULE for this specific image: ${styleVariations[i]}`;
-                promises.push(generateSingleImage(specificPrompt, bgImageData, productImageData));
+
+            for (let i = 0; i < numOutput; i++) {
+                let prompt = "";
+                let parts = [];
+                
+                validProducts.forEach(p => parts.push({ inlineData: { mimeType: p.mimeType, data: p.data } }));
+                
+                const modelSource = document.querySelector('input[name="model-source"]:checked')?.value;
+                const isWithoutModel = withoutModelCheckbox.checked;
+                
+                if (!isWithoutModel && modelSource === 'upload' && modelData?.data) {
+                     parts.unshift({ inlineData: { mimeType: modelData.mimeType, data: modelData.data } });
+                }
+                
+                if (logoData?.data) {
+                     parts.push({ inlineData: { mimeType: logoData.mimeType, data: logoData.data } });
+                }
+
+                if (useCustomPrompt) {
+                    prompt = `Apply the following custom request to the attached image: 
+"${customPromptVal}"
+
+LAYOUT & ASPECT RATIO RULES:
+- Target aspect ratio: ${ratio} (${W}x${H}).
+- Keep the main subject fully visible inside the frame (do not crop them out).
+- If necessary, extend the background naturally to fit the ${ratio} ratio.
+- Do NOT add fake borders, white bars, or stretched pixels.
+
+STYLE RULES:
+- Strictly follow the user's custom request above for any style changes, character edits, or background changes.
+- Maintain the core identity and pose of the original subject.`;
+                } else {
+                    const photoStyle = document.getElementById('photo-style').value;
+                    const productDescEl = document.getElementById('product-description');
+                    const productDesc = productDescEl ? productDescEl.value.trim() : '';
+                    
+                    // Standard Product Showcase
+                    let basePrompt = `Professional product photography of the product. ${categoryKeyword}. Style: ${photoStyle}. `;
+                    
+                    // Smart arrangement for multi-product
+                    if (validProducts.length > 1) {
+                         basePrompt += `Arrange all ${validProducts.length} products in a harmonious, aesthetic composition. `;
+                    } else {
+                         basePrompt += `Center stage, hero shot. `;
+                    }
+                    
+                    // Use productDesc only for context/mood instructions, NOT for visible text
+                    if (productDesc) {
+                        basePrompt += `Context: ${productDesc}. `;
+                    }
+                    
+                    // Model Prompt
+                    if (!isWithoutModel) {
+                         if (modelSource === 'generate_faceless_cartoon') {
+                             basePrompt += "Faceless 3D cartoon style character holding/using the product. ";
+                         } else if (modelSource === 'generate_realistic') {
+                             basePrompt += "Realistic professional model posing with the product. ";
+                         } else {
+                             basePrompt += "Use the uploaded model reference posing with the product. ";
+                         }
+                         const interaction = document.getElementById('interaction-type').value;
+                         basePrompt += `Action: ${interaction}. `;
+                    }
+                    
+                    // Ratio Specific Instruction
+                    let ratioInstruction = "";
+                    if (ratio === "custom") {
+                        ratioInstruction = `Ensure aspect ratio exactly matches the custom dimensions of ${W}x${H}. Extend the background naturally to fill the space without cropping.`;
+                    } else if (ratio === "16:9") {
+                        ratioInstruction = "Create a wide cinematic landscape composition (16:9). Extend the background horizontally.";
+                    } else if (ratio === "9:16") {
+                        ratioInstruction = "Create a tall vertical portrait composition (9:16). Extend the background vertically.";
+                    } else if (ratio === "1:1.414") {
+                        ratioInstruction = "Create a vertical poster layout (1:1.414). Leave space for title/subtitle.";
+                    } else if (ratio === "2:3") {
+                        ratioInstruction = "Create a medium vertical poster layout (2:3). Ensure clear hierarchy.";
+                    } else if (ratio === "1:3") {
+                        ratioInstruction = "Create a long infographic layout (1:3). Structure information vertically.";
+                    } else {
+                        ratioInstruction = `Ensure aspect ratio ${ratio}.`;
+                    }
+                    
+                    // VARIATION LOGIC (Fix for "don't be same")
+                    // We cycle through the extended studioVariations array using modulo
+                    const variationPrompt = studioVariations[i % studioVariations.length];
+
+                    prompt = `${basePrompt} ${variationPrompt} ${ratioInstruction} Ensure high quality, 8k resolution, soft lighting. ${negativePrompt}`;
+                }
+                
+                parts.push({ text: prompt });
+                promises.push(generateImage(parts));
             }
 
             try {
                 const results = await Promise.all(promises);
-                renderResults(results);
-            } catch (err) {
-                console.error(err);
-                showError("Terjadi kesalahan saat menghubungi server AI. Coba lagi.");
+                displayResults(results);
+            } catch (error) {
+                console.error(error);
+                showErrorState(error.message);
             } finally {
-                setLoading(false);
+                setLoadingState(false);
             }
         });
+        
+        async function generateImage(parts) {
+             const apiKey = "";
+             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${apiKey}`;
+             
+             const payload = {
+                 contents: [{ role: "user", parts: parts }],
+                 generationConfig: { responseModalities: ["TEXT", "IMAGE"] }
+             };
 
-        async function generateSingleImage(promptText, bg, product) {
-            const payload = {
-                contents: [{
-                    role: "user",
-                    parts: [
-                        { text: promptText },
-                        { inlineData: bg },
-                        { inlineData: product }
-                    ]
-                }],
-                generationConfig: { responseModalities: ["IMAGE"] }
-            };
+             let lastError = null;
+             const delays = [1000, 2000, 4000, 8000, 16000];
 
-            // Implement exponential backoff for robustness
-            const delays = [1000, 2000, 4000];
-            let lastError;
+             for (let i = 0; i < 5; i++) {
+                 try {
+                     const response = await fetch(apiUrl, { 
+                         method: 'POST', 
+                         headers: {'Content-Type': 'application/json'}, 
+                         body: JSON.stringify(payload) 
+                     });
 
-            for (let attempt = 0; attempt < 3; attempt++) {
-                try {
-                    const response = await fetch(API_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (!response.ok) throw new Error(`API Error: ${response.status}`);
-                    
-                    const result = await response.json();
-                    const b64 = result.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
-                    
-                    if (b64) return `data:image/png;base64,${b64}`;
-                    throw new Error("No image data returned.");
-
-                } catch (e) {
-                    lastError = e;
-                    await new Promise(r => setTimeout(r, delays[attempt]));
-                }
-            }
-            // If all fail, return null to be filtered out
-            console.error("Failed to generate image:", lastError);
-            return null; 
+                     if (!response.ok) {
+                         let errorText = await response.text();
+                         try {
+                             const errJson = JSON.parse(errorText);
+                             // Ambil pesan error spesifik jika ada
+                             errorText = errJson.error?.message || errorText;
+                         } catch (e) {}
+                         throw new Error(`HTTP ${response.status}: ${errorText}`);
+                     }
+                     
+                     const result = await response.json();
+                     const b64 = result.candidates?.[0]?.content?.parts?.find(p=>p.inlineData)?.inlineData?.data;
+                     if(b64) return `data:image/png;base64,${b64}`;
+                     
+                     throw new Error("Tiada imej dikembalikan dari API. Model mungkin menolak kandungan.");
+                 } catch (error) {
+                     lastError = error;
+                     console.error(`Percubaan ${i+1} gagal:`, error);
+                     await new Promise(resolve => setTimeout(resolve, delays[i]));
+                 }
+             }
+             
+             throw new Error(`Gagal selepas 5 percubaan. Ralat terakhir: ${lastError.message}`);
         }
 
-        // --- Rendering & Interaction ---
-        function renderResults(images) {
-            const validImages = images.filter(img => img !== null);
-            
-            if (validImages.length === 0) {
-                showError("Gagal memproses gambar. AI sedang sibuk.");
-                return;
-            }
-
-            // Hide empty state, show grid
-            emptyState.classList.add('hidden');
-            resultsGrid.classList.remove('hidden');
-            batchControls.classList.remove('hidden');
-            
+        function displayResults(images) {
             resultsGrid.innerHTML = '';
             selectedImages.clear();
-            updateBatchUI();
+            
+            let ratioStyle;
+            if (ratioSelect.value === 'custom') {
+                const w = document.getElementById('custom-width').value || 1080;
+                const h = document.getElementById('custom-height').value || 1080;
+                ratioStyle = `${w} / ${h}`;
+            } else {
+                ratioStyle = ratioSelect.value.replace(':', '/');
+            }
 
-            validImages.forEach((imgData, index) => {
-                const container = document.createElement('div');
-                container.className = 'result-item-container relative rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow bg-slate-100 aspect-9-16 cursor-pointer group';
-                
-                const img = document.createElement('img');
-                img.src = imgData;
-                img.className = 'w-full h-full object-cover';
-                
-                const ring = document.createElement('div');
-                ring.className = 'selected-ring';
+            images.forEach((imageUrl, index) => {
+                if (imageUrl) {
+                    const container = document.createElement('div');
+                    container.className = `relative group bg-slate-100 rounded-lg flex items-center justify-center overflow-hidden result-item-container`;
+                    container.style.aspectRatio = ratioStyle;
+                    container.setAttribute('data-url', imageUrl);
 
-                const actions = document.createElement('div');
-                actions.className = 'overlay-actions absolute inset-0 bg-slate-900/40 flex items-center justify-center gap-3 backdrop-blur-[2px]';
+                    const overlay = document.createElement('div');
+                    overlay.className = 'selected-overlay';
 
-                // View Button
-                const viewBtn = document.createElement('button');
-                viewBtn.className = 'w-10 h-10 rounded-full bg-white text-slate-800 flex items-center justify-center hover:bg-orange-100 hover:text-orange-600 transition-colors shadow-lg';
-                viewBtn.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>`;
-                viewBtn.onclick = (e) => { e.stopPropagation(); openModal(imgData); };
+                    const img = document.createElement('img');
+                    img.src = imageUrl;
+                    img.alt = "Generated Image";
+                    img.className = "w-full h-full object-contain rounded-lg animate-fade-in bg-slate-200";
 
-                // Select Button
-                const selectBtn = document.createElement('button');
-                selectBtn.className = 'btn-select w-10 h-10 rounded-full bg-white text-slate-800 flex items-center justify-center hover:bg-orange-100 transition-colors shadow-lg';
-                selectBtn.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`;
-                
-                actions.appendChild(viewBtn);
-                actions.appendChild(selectBtn);
+                    const actionContainer = document.createElement('div');
+                    actionContainer.className = 'absolute top-2 right-2 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity z-20';
 
-                container.appendChild(img);
-                container.appendChild(actions);
-                container.appendChild(ring);
+                    const selectToggle = document.createElement('button');
+                    selectToggle.className = 'select-toggle';
+                    selectToggle.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.017 3.457L10.093 1.533C9.404.844 8.797 0 8 0c-.797 0-1.404.844-2.093 1.533L4.017 3.457c-.689.689-.689 1.802 0 2.491L6.11 8.05l-2.093 2.093c-.689.689-.689 1.802 0 2.491l1.924 1.924c.689.689 1.802.689 2.491 0l1.924-1.924c.689-.689.689-1.802 0-2.491L9.89 8.05l2.093-2.093c.689-.689.689-1.802 0-2.491zM8 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z" fill-rule="evenodd"/></svg>`;
+                    selectToggle.onclick = () => toggleSelection(container, selectToggle);
 
-                // Toggle Selection Logic
-                container.onclick = () => {
-                    if (selectedImages.has(imgData)) {
-                        selectedImages.delete(imgData);
-                        container.classList.remove('selected');
-                    } else {
-                        selectedImages.add(imgData);
-                        container.classList.add('selected');
-                    }
-                    updateBatchUI();
-                };
+                    const previewBtn = document.createElement('button');
+                    previewBtn.className = 'p-1.5 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-75';
+                    previewBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/><path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/></svg>`;
+                    previewBtn.onclick = () => showImagePreview(imageUrl);
 
-                resultsGrid.appendChild(container);
+                    const downloadBtn = document.createElement('button');
+                    downloadBtn.className = 'p-1.5 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-75';
+                    downloadBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>`;
+                    downloadBtn.onclick = () => downloadWithRatio(imageUrl, ratioSelect.value, `generated_${Date.now()}_${index}.png`);
+
+                    actionContainer.append(previewBtn, downloadBtn);
+                    container.append(img, overlay, selectToggle, actionContainer);
+                    resultsGrid.appendChild(container);
+                }
+            });
+            
+            resultsGrid.classList.remove('hidden');
+            bulkDownloadContainer.classList.remove('hidden');
+            updateBulkDownloadButton();
+        }
+
+        function showImagePreview(imageUrl) {
+            processToRatioBlob(imageUrl, ratioSelect.value).then(blob => {
+                const url = URL.createObjectURL(blob);
+                modalImage.src = url;
+                imagePreviewModal.classList.remove('hidden');
             });
         }
 
-        // --- Batch Download Logic (ZIP) ---
-        function updateBatchUI() {
-            const count = selectedImages.size;
-            selectedCountEl.innerText = count;
-            downloadSelectedBtn.disabled = count === 0;
-            downloadSelectedBtn.innerText = count > 0 ? `Download ${count} Gambar (.zip)` : `Download (.zip)`;
+        function hideImagePreview() {
+             imagePreviewModal.classList.add('hidden');
+             modalImage.src = '';
         }
-
-        downloadSelectedBtn.addEventListener('click', async () => {
-            if (selectedImages.size === 0) return;
-            
-            const originalText = downloadSelectedBtn.innerHTML;
-            downloadSelectedBtn.innerHTML = `Memproses ZIP...`;
-            downloadSelectedBtn.disabled = true;
-
-            try {
-                const zip = new JSZip();
-                let count = 1;
-                for (const imgUrl of selectedImages) {
-                    // Extract base64 part
-                    const base64Data = imgUrl.split(',')[1];
-                    zip.file(`poster_ajaib_var_${count}.png`, base64Data, {base64: true});
-                    count++;
-                }
-
-                const content = await zip.generateAsync({type:"blob"});
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(content);
-                a.download = `Poster_Ajaib_Batch_${Date.now()}.zip`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                
-            } catch (e) {
-                alert("Gagal membuat file ZIP.");
-                console.error(e);
-            } finally {
-                downloadSelectedBtn.innerHTML = originalText;
-                downloadSelectedBtn.disabled = false;
-            }
+        
+        closeModalBtn.addEventListener('click', hideImagePreview);
+        imagePreviewModal.addEventListener('click', (e) => {
+            if (e.target === imagePreviewModal) hideImagePreview();
         });
 
-        // --- Modal & Utility ---
-        const modal = document.getElementById('image-modal');
-        const modalImg = document.getElementById('modal-img');
-        const closeModalBtn = document.getElementById('close-modal');
-
-        function openModal(src) {
-            modalImg.src = src;
-            modal.classList.remove('hidden');
-            // Small timeout for fade animation to kick in
-            setTimeout(() => modal.classList.remove('opacity-0'), 10);
-        }
-
-        closeModalBtn.onclick = () => {
-            modal.classList.add('opacity-0');
-            setTimeout(() => modal.classList.add('hidden'), 300);
-        };
-
-        function setLoading(isLoading) {
-            generateBtn.disabled = isLoading;
+        function setLoadingState(isLoading) {
             if (isLoading) {
+                generateBtn.disabled = true;
                 btnText.classList.add('hidden');
                 btnSpinner.classList.remove('hidden');
-                
-                // Show loading state in right panel
+                resultsPlaceholder.classList.add('hidden');
+                errorMessage.classList.add('hidden');
                 resultsGrid.classList.add('hidden');
-                batchControls.classList.add('hidden');
-                emptyState.classList.remove('hidden');
-                statusIcon.classList.add('hidden');
-                statusSpinner.classList.remove('hidden');
-                statusTitle.innerText = "AI Sedang Berpikir...";
-                statusDesc.innerText = "Memotong produk, menyatukan ke poster, dan menata teks. Tunggu sebentar...";
+                resultsLoader.classList.remove('hidden');
+                bulkDownloadContainer.classList.add('hidden');
             } else {
+                generateBtn.disabled = false;
                 btnText.classList.remove('hidden');
                 btnSpinner.classList.add('hidden');
+                resultsLoader.classList.add('hidden');
             }
         }
 
-        function showError(msg) {
-            emptyState.classList.remove('hidden');
-            resultsGrid.classList.add('hidden');
-            batchControls.classList.add('hidden');
-            
-            statusSpinner.classList.add('hidden');
-            statusIcon.classList.remove('hidden');
-            statusIcon.innerHTML = `<svg class="w-16 h-16 mx-auto text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
-            statusTitle.innerText = "Terjadi Kesalahan";
-            statusTitle.classList.add('text-red-600');
-            statusDesc.innerText = msg;
+        function showErrorState(msg) {
+             setLoadingState(false);
+             errorMessage.classList.remove('hidden');
+             errorDetails.textContent = msg;
         }
+
+        function showModal(msg) {
+            alert(msg); // Simplification
+        }
+        
+        updateCustomizationView();
     </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </body>
 </html>
