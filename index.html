@@ -3,37 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Poster Ajaib - Editor Pro</title>
+    <title>Poster Kilat AI - Auto Nyatu</title>
     
-    <!-- Load Tailwind CSS untuk UI -->
+    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Load html2canvas untuk fitur screenshot/download -->
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 
-    <!-- Load AI Imgly Penghapus Latar (Jalur JSDelivr yang dijamin stabil) -->
-    <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.4.5/dist/browser/umd/index.js"></script>
+    <!-- PENTING: Load AI Imgly Penghapus Latar -->
+    <script src="https://unpkg.com/@imgly/background-removal@1.4.5/dist/browser/umd/index.js"></script>
 
-    <!-- Load Fonts (Playfair & Poppins) -->
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Load Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
     <style>
-        body { font-family: 'Poppins', sans-serif; background-color: #f1f5f9; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
         .font-serif-custom { font-family: 'Playfair Display', serif; }
         
         @keyframes spin { to { transform: rotate(360deg); } }
         .spinner { border-top-color: #f97316; animation: spin 1s linear infinite; }
 
-        /* Kanvas Poster (Rasio 9:16) */
+        /* KANVAS POSTER (9:16) */
         #poster-canvas {
-            width: 405px;
-            height: 720px;
+            width: 360px;
+            height: 640px;
             position: relative;
             overflow: hidden;
             background-color: #ffffff;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
             margin: 0 auto;
             transform-origin: top center;
+            border-radius: 12px; /* Melengkung elegan */
         }
 
         #canvas-bg {
@@ -41,15 +42,15 @@
             top: 0; left: 0; right: 0; bottom: 0;
             background-size: cover;
             background-position: center;
-            background-image: linear-gradient(to bottom, #ffedd5 0%, #fed7aa 50%, #fdba74 100%);
+            background-image: linear-gradient(to bottom, #fde047 0%, #f97316 100%);
             z-index: 0;
+            transition: all 0.3s ease;
         }
 
-        /* Overlay Gradasi Hitam agar teks terbaca */
         #canvas-overlay {
             position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 40%, rgba(0,0,0,0.1) 60%, rgba(0,0,0,0.85) 100%);
+            background: linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 40%, rgba(0,0,0,0) 60%, rgba(0,0,0,0.85) 100%);
             z-index: 1;
             pointer-events: none;
         }
@@ -64,186 +65,195 @@
 
         .editable-text {
             outline: none;
-            padding: 2px 4px;
-            border-radius: 4px;
-            transition: background 0.2s;
+            padding: 4px;
+            border-radius: 6px;
+            transition: all 0.2s;
             text-align: center;
             white-space: nowrap;
+            border: 1px dashed transparent;
         }
-        .editable-text:hover { box-shadow: 0 0 0 1px rgba(255,255,255,0.5); }
-        .editable-text:focus { background: rgba(0,0,0,0.3); box-shadow: 0 0 0 1px white; cursor: text; }
+        .editable-text:hover { box-shadow: 0 0 0 1px rgba(255,255,255,0.4); background: rgba(0,0,0,0.1); }
+        .editable-text:focus { box-shadow: 0 0 0 1px white; background: rgba(0,0,0,0.3); cursor: text; }
 
-        /* Shadow Teks Premium */
         .text-shadow-hard { text-shadow: 0px 4px 15px rgba(0,0,0,0.9), 0px 2px 5px rgba(0,0,0,0.8); }
         .text-shadow-soft { text-shadow: 0px 2px 8px rgba(0,0,0,0.8); }
         
-        /* EFEK PRODUK EYE-CATCHING (Agar Tidak Kaku) */
+        /* GAYA GAMBAR PRODUK - RAHASIA AUTO EYECATCHING & MENYATU */
         #product-image {
-            max-width: 360px;
-            max-height: 480px;
-            /* 1. Shadow tebal agar terlihat melayang di atas meja/background */
-            /* 2. Saturasi dinaikkan agar makanan tampak lebih segar/merah */
-            /* 3. Kontras dinaikkan agar tajam */
-            filter: drop-shadow(0px 35px 25px rgba(0,0,0,0.65)) drop-shadow(0px 10px 10px rgba(0,0,0,0.4)) contrast(1.15) brightness(1.05) saturate(1.25); 
+            max-width: 320px;
+            max-height: 420px;
+            /* Efek standar: Drop-shadow tebal agar melayang & ngeblend, kontras/saturasi dinaikkan agar makanan tajam */
+            filter: drop-shadow(0px 35px 25px rgba(0,0,0,0.65)) drop-shadow(0px 10px 10px rgba(0,0,0,0.4)) contrast(1.15) saturate(1.2) brightness(1.05); 
             pointer-events: none; 
             transition: all 0.3s ease;
         }
     </style>
 </head>
-<body class="text-slate-800 antialiased min-h-screen py-8">
+<body class="text-slate-800 antialiased min-h-screen py-6 sm:py-10 flex justify-center">
 
-    <div class="container mx-auto p-4 sm:p-6 max-w-6xl">
-        <header class="text-center mb-8">
-            <h1 class="text-4xl font-extrabold text-slate-900 mb-2 font-serif-custom tracking-tight">Poster <span class="text-orange-600">Kilat</span> Pro</h1>
-            <p class="text-sm text-slate-600 max-w-2xl mx-auto">Upload background, lalu upload foto makananmu. AI akan memotong & memberikan efek studio 3D otomatis. <br><b class="text-indigo-600">Klik dan geser semua teks/gambar di kanvas!</b></p>
-        </header>
-
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            
-            <!-- PANEL KIRI (PENGATURAN) -->
-            <div class="lg:col-span-4 bg-white p-6 rounded-2xl shadow-lg border border-slate-200">
-                <form id="editor-form" class="space-y-6">
-                    
-                    <div>
-                        <h3 class="text-md font-bold text-slate-800 mb-3 border-b pb-2 flex items-center gap-2">
-                            <span class="bg-slate-800 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">1</span> Upload Gambar
-                        </h3>
-                        <div class="space-y-4">
-                            <!-- Background -->
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Latar Poster (Foto Dapur / Meja)</label>
-                                <label for="bg-upload" class="flex flex-col items-center justify-center w-full h-14 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition">
-                                    <span class="text-xs text-slate-500 font-medium text-center px-2">Pilih file latar belakang...</span>
-                                    <input id="bg-upload" type="file" class="hidden" accept="image/*" />
-                                </label>
-                            </div>
-
-                            <!-- Foto Produk & Progress Bar AI -->
-                            <div class="relative bg-orange-50 p-3 rounded-xl border border-orange-200">
-                                <label class="block text-xs font-bold text-orange-800 mb-2">Foto Produk (Auto Potong & Eye-Catching)</label>
-                                <label for="product-upload" id="product-label-btn" class="flex flex-col items-center justify-center w-full h-20 border-2 border-orange-400 border-dashed rounded-lg cursor-pointer bg-white hover:bg-orange-100 transition relative overflow-hidden shadow-sm">
-                                    
-                                    <div id="product-status-text" class="flex flex-col items-center">
-                                        <svg class="w-6 h-6 text-orange-600 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                                        <span class="text-xs text-orange-700 font-bold">Unggah Foto Rujak/Makanan</span>
-                                    </div>
-
-                                    <!-- Indikator Loading & Persentase (Sangat Penting) -->
-                                    <div id="ai-loading-overlay" class="absolute inset-0 bg-orange-600 hidden flex-col items-center justify-center z-10">
-                                        <div class="spinner w-5 h-5 rounded-full border-2 border-white mb-1"></div>
-                                        <span id="ai-progress-text" class="text-[11px] font-bold text-white text-center leading-tight">Memulai AI...<br>Jangan tutup halaman ini</span>
-                                        <!-- Bar Loading Visual -->
-                                        <div class="w-3/4 h-1 bg-orange-800 rounded-full mt-2 overflow-hidden">
-                                            <div id="ai-progress-bar" class="h-full bg-white w-0 transition-all duration-300"></div>
-                                        </div>
-                                    </div>
-
-                                    <input id="product-upload" type="file" class="hidden" accept="image/*" />
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <h3 class="text-md font-bold text-slate-800 mb-3 border-b pb-2 flex items-center gap-2">
-                            <span class="bg-slate-800 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">2</span> Ubah Teks
-                        </h3>
-                        <p class="text-[10px] text-slate-500 mb-3">Teks juga bisa diedit dengan cara <b>klik 2x langsung pada poster</b>.</p>
-                        <div class="space-y-3">
-                            <div><label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Teks Logo (Atas)</label><input type="text" id="input-logotext" value="HANYA PAGI" class="w-full p-2 bg-slate-50 border border-slate-200 rounded text-xs outline-none focus:border-orange-500"></div>
-                            <div><label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Judul Utama</label><input type="text" id="input-title" value="Pagi Ini Spesial." class="w-full p-2 bg-slate-50 border border-slate-200 rounded text-xs outline-none focus:border-orange-500"></div>
-                            <div><label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Deskripsi Produk</label><input type="text" id="input-subtitle" value="Rujak Manis Segar" class="w-full p-2 bg-slate-50 border border-slate-200 rounded text-xs outline-none focus:border-orange-500"></div>
-                            <div><label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Harga</label><input type="text" id="input-price" value="Rp 15.000" class="w-full p-2 bg-slate-50 border border-slate-200 rounded text-xs outline-none focus:border-orange-500"></div>
-                        </div>
-                    </div>
-
-                    <div class="pt-2">
-                        <button type="button" id="btn-download" class="w-full bg-slate-900 text-white font-bold py-4 px-4 rounded-xl hover:bg-black shadow-xl shadow-slate-900/20 flex items-center justify-center transition text-lg">
-                            <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                            Download Poster (.png)
-                        </button>
-                    </div>
-
-                </form>
+    <div class="container mx-auto p-4 max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        <!-- PANEL KIRI (ALAT & PENGATURAN) -->
+        <div class="lg:col-span-4 bg-white p-6 sm:p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100">
+            <div class="flex items-center gap-3 mb-6 border-b border-slate-100 pb-4">
+                <div class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 font-bold text-xl">1</div>
+                <h1 class="text-2xl font-extrabold text-slate-800 tracking-tight">Siapkan Gambar</h1>
             </div>
 
-            <!-- PANEL KANAN (PREVIEW INTERAKTIF 1 GAMBAR) -->
-            <div class="lg:col-span-8 flex flex-col items-center bg-white p-6 rounded-2xl shadow-lg border border-slate-200 min-h-[600px] overflow-hidden relative">
+            <form id="editor-form" class="space-y-6">
                 
-                <div class="w-full flex justify-between items-center mb-6">
-                    <h2 class="text-xl font-bold text-slate-800">Preview & Editor Interaktif</h2>
-                    <p class="text-[11px] font-bold text-orange-700 bg-orange-100 px-3 py-1.5 rounded-full shadow-sm flex items-center animate-pulse">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path></svg>
-                        Seret gambar/teks untuk memindahkannya!
-                    </p>
+                <!-- UPLOAD BACKGROUND -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Latar Poster (Foto Dapur / Meja)</label>
+                    <label for="bg-upload" class="flex flex-col items-center justify-center w-full h-16 border-2 border-slate-200 border-dashed rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100 transition">
+                        <span class="text-sm text-slate-600 font-medium">Klik pilih latar belakang...</span>
+                        <input id="bg-upload" type="file" class="hidden" accept="image/*" />
+                    </label>
                 </div>
 
-                <!-- BINGKAI POSTER -->
-                <div id="poster-canvas" class="rounded-xl">
-                    <div id="canvas-bg"></div>
-                    <div id="canvas-overlay"></div>
+                <!-- UPLOAD FOTO PRODUK (DENGAN AI) -->
+                <div class="relative bg-orange-50 p-4 rounded-2xl border border-orange-200 shadow-sm">
+                    <label class="block text-xs font-bold text-orange-800 uppercase tracking-wider mb-2">Foto Produk (Auto Potong & Nyatu)</label>
+                    
+                    <label for="product-upload" id="product-label-btn" class="flex flex-col items-center justify-center w-full h-24 border-2 border-orange-400 border-dashed rounded-xl cursor-pointer bg-white hover:bg-orange-100 transition relative overflow-hidden">
+                        
+                        <div id="product-status-text" class="flex flex-col items-center">
+                            <svg class="w-7 h-7 text-orange-500 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg>
+                            <span class="text-sm text-orange-700 font-bold">Unggah Kotak Makananmu</span>
+                        </div>
 
-                    <!-- Elemen Logo (Bisa Digeser) -->
-                    <div class="draggable-item flex flex-col items-center cursor-move" id="drag-logo" style="top: 45px; left: 165px;">
-                        <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ef4444'><path d='M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm0 15a5.25 5.25 0 110-10.5 5.25 5.25 0 010 10.5z'/><path fill='white' d='M12 9a3 3 0 100 6 3 3 0 000-6z'/></svg>" class="w-14 h-14 mb-1 drop-shadow-lg pointer-events-none">
-                        <div class="editable-text font-bold text-[11px] text-white uppercase tracking-widest leading-tight text-shadow-soft" id="display-logotext" contenteditable="true" spellcheck="false">HANYA<br>PAGI</div>
+                        <!-- LAYAR LOADING AI YANG JELAS -->
+                        <div id="ai-loading-overlay" class="absolute inset-0 bg-orange-600 hidden flex-col items-center justify-center z-10">
+                            <div class="spinner w-6 h-6 rounded-full border-2 border-white border-t-transparent mb-2"></div>
+                            <span class="text-[10px] font-bold text-white text-center leading-tight tracking-wide">
+                                AI SEDANG BEKERJA...<br>
+                                <span class="text-orange-200 font-normal">(Download data ~40MB, tunggu sebentar)</span>
+                            </span>
+                        </div>
+
+                        <input id="product-upload" type="file" class="hidden" accept="image/*" />
+                    </label>
+                </div>
+
+                <!-- FORM TEKS -->
+                <div class="pt-4 border-t border-slate-100">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-600 font-bold text-sm">2</div>
+                        <h2 class="text-lg font-bold text-slate-800">Ubah Teks</h2>
                     </div>
-
-                    <!-- Elemen Judul (Bisa Digeser) -->
-                    <div class="draggable-item flex flex-col items-center w-[360px] cursor-move" id="drag-title" style="top: 150px; left: 22px;">
-                        <h1 class="editable-text font-serif-custom text-[56px] font-extrabold text-white leading-none mb-1 text-shadow-hard tracking-tight" id="display-title" contenteditable="true" spellcheck="false">Pagi Ini<br>Spesial.</h1>
-                        <h2 class="editable-text text-[22px] font-semibold text-slate-100 text-shadow-hard mt-1" id="display-subtitle" contenteditable="true" spellcheck="false">Rujak Manis Segar</h2>
-                    </div>
-
-                    <!-- Elemen Produk (Bisa Digeser) -->
-                    <div class="draggable-item flex justify-center w-[360px] cursor-move" id="drag-product" style="top: 320px; left: 22px;">
-                        <!-- Gambar placeholder sebelum ada produk diupload -->
-                        <img id="product-image" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffffff' opacity='0.7'><path d='M21 15.75v-9A2.25 2.25 0 0018.75 4.5H5.25A2.25 2.25 0 003 6.75v9A2.25 2.25 0 005.25 18h13.5A2.25 2.25 0 0021 15.75zM12 15a3 3 0 110-6 3 3 0 010 6z'/></svg>" class="w-64 h-64 object-contain">
-                    </div>
-
-                    <!-- Elemen Harga (Bisa Digeser) -->
-                    <div class="draggable-item flex justify-center w-[200px] cursor-move" id="drag-price" style="top: 560px; left: 102px;">
-                        <h3 class="editable-text text-[42px] font-black text-orange-400 text-shadow-hard tracking-tighter" id="display-price" contenteditable="true" spellcheck="false">Rp 15.000</h3>
-                    </div>
-
-                    <!-- Elemen Info Bawah (Tetap) -->
-                    <div class="absolute bottom-6 left-0 right-0 flex flex-col items-center pointer-events-none">
-                        <p class="text-[10px] text-slate-200 mb-2 max-w-[85%] text-center text-shadow-soft font-medium">Datang langsung ke lokasi atau pesan di hanyapagi.com.</p>
-                        <div class="flex items-center gap-4 text-[11px] text-white text-shadow-soft font-bold">
-                            <div class="flex items-center gap-1"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zm0 10.162a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg> @hanyapagi</div>
-                            <div class="flex items-center gap-1"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93v7.2c0 1.63-.52 3.25-1.51 4.54-1.25 1.65-3.25 2.66-5.32 2.8-2.31.15-4.69-.51-6.28-2.15-1.52-1.55-2.22-3.8-1.92-5.96.26-1.9 1.42-3.6 3.12-4.52 1.66-.9 3.66-1.14 5.51-.76.12.03.24.06.36.1v4.06c-1.39-.23-2.86-.06-4.04.75-.85.59-1.43 1.55-1.45 2.6-.03 1.34.8 2.63 2.05 3.06 1.25.43 2.73.18 3.73-.7 1.05-.93 1.5-2.38 1.5-3.79V0h2.47z"/></svg> @hanyapagi</div>
+                    <p class="text-[10px] text-slate-400 mb-4">Teks juga bisa diedit dengan cara <b>klik langsung pada tulisan di poster</b>.</p>
+                    
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Teks Logo (Atas)</label>
+                            <input type="text" id="input-logotext" value="HANYA PAGI" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium outline-none focus:border-orange-400 focus:bg-white transition">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Judul Utama</label>
+                            <input type="text" id="input-title" value="Pagi Ini Spesial." class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium outline-none focus:border-orange-400 focus:bg-white transition">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Deskripsi Produk</label>
+                            <input type="text" id="input-subtitle" value="Rujak Manis Segar" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium outline-none focus:border-orange-400 focus:bg-white transition">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Harga</label>
+                            <input type="text" id="input-price" value="Rp 15.000" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium outline-none focus:border-orange-400 focus:bg-white transition">
                         </div>
                     </div>
                 </div>
 
+                <!-- DOWNLOAD -->
+                <div class="pt-6">
+                    <button type="button" id="btn-download" class="w-full bg-slate-900 text-white font-bold py-4 px-4 rounded-xl hover:bg-black shadow-xl shadow-slate-900/20 flex items-center justify-center transition-all duration-200 text-lg active:scale-[0.98]">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        Download Poster (.png)
+                    </button>
+                </div>
+
+            </form>
+        </div>
+
+        <!-- PANEL KANAN (PREVIEW INTERAKTIF) -->
+        <div class="lg:col-span-8 flex flex-col items-center bg-white p-6 sm:p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 relative min-h-[700px]">
+            
+            <div class="w-full flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+                <h2 class="text-xl font-bold text-slate-800">Preview & Editor Interaktif</h2>
+                <span class="text-[11px] font-semibold text-orange-600 bg-orange-50 px-3 py-1.5 rounded-full border border-orange-100 flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path></svg>
+                    Bisa ditarik & digeser bebas!
+                </span>
             </div>
+
+            <!-- BINGKAI KANVAS PUSAT (360 x 640) -->
+            <div id="poster-canvas">
+                <div id="canvas-bg"></div>
+                <div id="canvas-overlay"></div>
+
+                <!-- 1. ELEMEN LOGO (Bisa Digeser) -->
+                <div class="draggable-item flex flex-col items-center" id="drag-logo" style="top: 40px; left: 145px;">
+                    <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ef4444'><path d='M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm0 15a5.25 5.25 0 110-10.5 5.25 5.25 0 010 10.5z'/><path fill='white' d='M12 9a3 3 0 100 6 3 3 0 000-6z'/></svg>" class="w-12 h-12 mb-1 drop-shadow-lg pointer-events-none">
+                    <div class="editable-text font-bold text-[10px] text-white uppercase tracking-widest leading-tight text-shadow-soft" id="display-logotext" contenteditable="true" spellcheck="false">HANYA<br>PAGI</div>
+                </div>
+
+                <!-- 2. ELEMEN JUDUL (Bisa Digeser) -->
+                <div class="draggable-item flex flex-col items-center w-[320px]" id="drag-title" style="top: 130px; left: 20px;">
+                    <h1 class="editable-text font-serif-custom text-[46px] font-black text-white leading-[1.1] mb-1 text-shadow-hard tracking-tight" id="display-title" contenteditable="true" spellcheck="false">Pagi Ini<br>Spesial.</h1>
+                    <h2 class="editable-text text-[16px] font-semibold text-slate-100 text-shadow-hard mt-1" id="display-subtitle" contenteditable="true" spellcheck="false">Rujak Manis Segar</h2>
+                </div>
+
+                <!-- 3. ELEMEN PRODUK MAKANAN (Bisa Digeser) -->
+                <div class="draggable-item flex justify-center w-[320px]" id="drag-product" style="top: 260px; left: 20px;">
+                    <!-- Gambar placeholder sebelum ada produk diupload -->
+                    <img id="product-image" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffffff' opacity='0.7'><path d='M21 15.75v-9A2.25 2.25 0 0018.75 4.5H5.25A2.25 2.25 0 003 6.75v9A2.25 2.25 0 005.25 18h13.5A2.25 2.25 0 0021 15.75zM12 15a3 3 0 110-6 3 3 0 010 6z'/></svg>" class="w-64 h-64 object-contain">
+                </div>
+
+                <!-- 4. ELEMEN HARGA (Bisa Digeser) -->
+                <div class="draggable-item flex justify-center w-[200px]" id="drag-price" style="top: 480px; left: 80px;">
+                    <h3 class="editable-text text-[42px] font-black text-orange-400 text-shadow-hard tracking-tighter" id="display-price" contenteditable="true" spellcheck="false">Rp 15.000</h3>
+                </div>
+
+                <!-- 5. INFO BAWAH (Tetap) -->
+                <div class="absolute bottom-5 left-0 right-0 flex flex-col items-center pointer-events-none">
+                    <p class="text-[9px] text-slate-200 mb-2 max-w-[85%] text-center text-shadow-soft font-medium">Datang langsung ke lokasi atau pesan di hanyapagi.com.</p>
+                    <div class="flex items-center gap-4 text-[10px] text-white text-shadow-soft font-bold tracking-wide">
+                        <div class="flex items-center gap-1">
+                            <svg class="w-3 h-3 drop-shadow-md" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+                            @hanyapagi
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <svg class="w-3 h-3 drop-shadow-md" fill="currentColor" viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93v7.2c0 1.63-.52 3.25-1.51 4.54-1.25 1.65-3.25 2.66-5.32 2.8-2.31.15-4.69-.51-6.28-2.15-1.52-1.55-2.22-3.8-1.92-5.96.26-1.9 1.42-3.6 3.12-4.52 1.66-.9 3.66-1.14 5.51-.76.12.03.24.06.36.1v4.06c-1.39-.23-2.86-.06-4.04.75-.85.59-1.43 1.55-1.45 2.6-.03 1.34.8 2.63 2.05 3.06 1.25.43 2.73.18 3.73-.7 1.05-.93 1.5-2.38 1.5-3.79V0h2.47z"/></svg>
+                            @hanyapagi
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
     <script>
-        // 1. Sinkronisasi Text Form (Kiri) dengan Teks Poster (Kanan)
+        // 1. SINKRONISASI TEKS (Form <-> Kanvas)
         const textFields = ['title', 'subtitle', 'price', 'logotext'];
         textFields.forEach(field => {
             const inputEl = document.getElementById(`input-${field}`);
             const displayEl = document.getElementById(`display-${field}`);
             
-            // Ketik di Kiri -> Berubah di Kanan
             inputEl.addEventListener('input', (e) => {
                 displayEl.innerHTML = e.target.value.replace(/\n/g, '<br>');
             });
 
-            // Ketik langsung di Poster -> Update di form kiri
             displayEl.addEventListener('input', (e) => {
                 let cleanText = e.target.innerHTML.replace(/<br\s*[\/]?>/gi, '\n');
                 inputEl.value = cleanText.replace(/<[^>]+>/g, '');
             });
             
-            // Supaya saat ngetik di poster, elemennya gak tergeser (ter-drag)
+            // Matikan drag saat mengetik di kanvas
             displayEl.addEventListener('mousedown', (e) => e.stopPropagation());
             displayEl.addEventListener('touchstart', (e) => e.stopPropagation());
         });
 
-        // 2. Upload Gambar Background (Meja/Dapur)
+        // 2. FUNGSI UPLOAD LATAR (BACKGROUND)
         document.getElementById('bg-upload').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
@@ -255,90 +265,71 @@
             }
         });
 
-        // 3. FUNGSI INTI: POTONG BACKGROUND DENGAN PROGRESS BAR (Anti Gagal)
+        // 3. FUNGSI INTI: AI POTONG BACKGROUND (KEBAL VERCEL/CORS)
         document.getElementById('product-upload').addEventListener('change', async function(e) {
             const file = e.target.files[0];
             if (!file) return;
 
-            // Variabel UI
             const overlay = document.getElementById('ai-loading-overlay');
-            const progressText = document.getElementById('ai-progress-text');
-            const progressBar = document.getElementById('ai-progress-bar');
             const statusText = document.getElementById('product-status-text');
             const productImg = document.getElementById('product-image');
             const downloadBtn = document.getElementById('btn-download');
 
-            // Tampilkan Loading Warna Orange
+            // Nyalakan Loading
             overlay.classList.remove('hidden');
             overlay.classList.add('flex');
             statusText.classList.add('hidden');
             downloadBtn.disabled = true;
-            
-            progressText.innerHTML = "Memanggil AI Pemotong...<br>(Pastikan internet stabil)";
-            progressBar.style.width = "5%";
 
             try {
+                // Pastikan pustaka AI ter-load
                 if (typeof imglyRemoveBackground === 'undefined') {
-                    throw new Error("Sistem AI gagal dimuat dari server utama.");
+                    throw new Error("Pustaka AI belum termuat. Periksa koneksi internet Anda.");
                 }
-
-                // Konfigurasi Spesial dengan Progress Tracking
+                
+                // KONFIGURASI KRUSIAL UNTUK VERCEL: Paksa gunakan jalur Unpkg
                 const config = {
-                    publicPath: 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.4.5/dist/',
-                    progress: (key, current, total) => {
-                        // Menghitung persentase download file AI
-                        const percent = Math.round((current / total) * 100);
-                        progressBar.style.width = `${percent}%`;
-                        
-                        if(key.includes('onnx')) {
-                            progressText.innerHTML = `Mendownload Otak AI (${percent}%)<br>Ukurannya lumayan, sabar ya...`;
-                        } else {
-                            progressText.innerHTML = `Memproses Gambar (${percent}%)<br>Sedikit lagi...`;
-                        }
-                    }
+                    publicPath: 'https://unpkg.com/@imgly/background-removal@1.4.5/dist/'
                 };
 
-                // Proses Pemotongan
+                // Eksekusi pemotongan
                 const imageBlob = await imglyRemoveBackground(file, config);
                 const url = URL.createObjectURL(imageBlob);
                 
-                // Terapan Hasil ke Gambar di Poster
+                // Terapkan ke gambar (CSS Shadow Eye-catching otomatis bekerja di #product-image)
                 productImg.src = url;
-                
-                // Hapus kelas placeholder agar gambar asli tampil dengan proporsi benar
                 productImg.classList.remove('w-64', 'h-64', 'object-contain');
-                productImg.classList.add('w-auto', 'h-auto', 'object-cover');
-
-            } catch (error) {
-                console.error("AI Error Details:", error);
-                alert(`KONEKSI TERPUTUS 😭\n\nGagal mendownload AI. Mungkin karena internet tidak stabil atau Adblock menyala. \n\nSistem akan tetap memasukkan gambarmu (tapi background tidak terhapus).`);
+                productImg.classList.add('w-auto', 'h-auto', 'object-contain');
                 
-                // FALLBACK: Masukkan gambar asli jika internet gagal download AI
+            } catch (error) {
+                console.error("AI Error:", error);
+                alert("Gagal memotong latar. Vercel atau Browser Anda memutuskan koneksi download AI. Menampilkan foto asli.");
+                
+                // Fallback: Tampilkan gambar asli jika terputus
                 const reader = new FileReader();
                 reader.onload = (ev) => { 
                     productImg.src = ev.target.result;
                     productImg.classList.remove('w-64', 'h-64', 'object-contain');
-                    productImg.classList.add('w-auto', 'h-auto', 'object-cover');
+                    productImg.classList.add('w-auto', 'h-auto', 'object-contain');
                 };
                 reader.readAsDataURL(file);
+
             } finally {
-                // Matikan Loading Screen
+                // Matikan loading
                 overlay.classList.add('hidden');
                 overlay.classList.remove('flex');
                 statusText.classList.remove('hidden');
-                statusText.innerHTML = `<svg class="w-6 h-6 text-green-600 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span class="text-xs text-green-700 font-bold">Berhasil Diupload!</span>`;
+                statusText.innerHTML = `<span class="text-sm text-green-600 font-bold">Produk Masuk!</span>`;
                 downloadBtn.disabled = false;
-                progressBar.style.width = "0%";
             }
         });
 
-        // 4. SISTEM DRAG AND DROP (GESER-GESER BEBAS)
+        // 4. SISTEM DRAG & DROP YANG SANGAT MULUS
         const draggables = document.querySelectorAll('.draggable-item');
         draggables.forEach(item => {
             let isDragging = false, startX, startY;
 
             const dragStart = (e) => {
-                // Abaikan drag jika user sedang nge-blok tulisan untuk diedit
                 if (e.target.classList.contains('editable-text') && document.activeElement === e.target) return;
                 
                 isDragging = true;
@@ -370,15 +361,12 @@
 
                 item.style.top = (currentTop + dy) + "px";
                 item.style.left = (currentLeft + dx) + "px";
-                item.style.bottom = "auto"; 
-                item.style.right = "auto";
-
+                
                 startX = currentX; startY = currentY;
             };
 
-            const dragEnd = () => { isDragging = false; item.style.cursor = 'move'; };
+            const dragEnd = () => { isDragging = false; item.style.cursor = 'grab'; };
 
-            // Event Listeners untuk Komputer & HP (Touchscreen)
             item.addEventListener('mousedown', dragStart);
             document.addEventListener('mousemove', drag);
             document.addEventListener('mouseup', dragEnd);
@@ -388,20 +376,20 @@
             document.addEventListener('touchend', dragEnd);
         });
 
-        // 5. FITUR DOWNLOAD (SCREENSHOT KANVAS HIGH RESOLUTION)
+        // 5. DOWNLOAD KANVAS MENJADI PNG HIGH-RES
         document.getElementById('btn-download').addEventListener('click', () => {
             const canvasEl = document.getElementById('poster-canvas');
             const btn = document.getElementById('btn-download');
             const originalText = btn.innerHTML;
             
-            btn.innerHTML = `<div class="spinner w-5 h-5 rounded-full border-2 border-white border-t-transparent mr-2"></div> Memproses Gambar...`;
+            btn.innerHTML = `<div class="spinner w-5 h-5 rounded-full border-2 border-white border-t-transparent mr-2"></div> Menyimpan...`;
             btn.disabled = true;
 
-            // Hilangkan outline putih saat tulisan sedang di-klik
+            // Hilangkan garis putus-putus fokus saat di-screenshot
             document.querySelectorAll('.editable-text').forEach(el => el.blur());
 
             html2canvas(canvasEl, { 
-                scale: 3, // Resolusi 3x Lipat lebih tajam
+                scale: 3, // Kualitas HD
                 useCORS: true, 
                 allowTaint: true,
                 backgroundColor: '#ffffff'
@@ -411,17 +399,17 @@
                         const url = URL.createObjectURL(blob);
                         const link = document.createElement('a');
                         link.href = url;
-                        link.download = `Poster_Kilat_${Date.now()}.png`; 
+                        link.download = `Poster_Ajaib_${Date.now()}.png`; 
                         document.body.appendChild(link);
                         link.click();
                         setTimeout(() => { document.body.removeChild(link); URL.revokeObjectURL(url); }, 100);
                     } else {
-                        alert("Gagal memproses file. Silakan coba lagi.");
+                        alert("Gagal memproses gambar.");
                     }
                 }, 'image/png');
             }).catch(err => {
                 console.error("HTML2Canvas Error:", err);
-                alert("Gagal men-download poster.");
+                alert("Download gagal. Pastikan background aman.");
             }).finally(() => {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
